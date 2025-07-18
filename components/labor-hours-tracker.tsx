@@ -3,14 +3,30 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover"
 import { CalendarIcon, Plus, Clock, Users, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import { supabase, type LaborHours, type Project, type Worker } from "@/lib/supabase"
@@ -24,8 +40,21 @@ interface LaborHoursForm {
   hourly_rate: string
 }
 
+interface LaborHoursWithRelations extends LaborHours {
+  workers?: {
+    id: string
+    first_name: string
+    last_name: string
+    is_section3_worker: boolean
+    is_targeted_section3_worker: boolean
+  }
+  projects?: {
+    name: string
+  }
+}
+
 export function LaborHoursTracker() {
-  const [laborHours, setLaborHours] = useState<LaborHours[]>([])
+  const [laborHours, setLaborHours] = useState<LaborHoursWithRelations[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -36,7 +65,7 @@ export function LaborHoursTracker() {
     hours_worked: "",
     work_date: undefined,
     job_category: "",
-    hourly_rate: "",
+    hourly_rate: ""
   })
 
   useEffect(() => {
@@ -45,20 +74,16 @@ export function LaborHoursTracker() {
 
   const fetchData = async () => {
     try {
-      // Fetch labor hours with related data
       const { data: hoursData } = await supabase
         .from("labor_hours")
         .select(`
           *,
           projects(name),
-          workers(first_name, last_name, is_section3_worker, is_targeted_section3_worker)
+          workers(id, first_name, last_name, is_section3_worker, is_targeted_section3_worker)
         `)
         .order("work_date", { ascending: false })
 
-      // Fetch projects
       const { data: projectsData } = await supabase.from("projects").select("*").eq("status", "active")
-
-      // Fetch workers
       const { data: workersData } = await supabase.from("workers").select("*").order("last_name")
 
       setLaborHours(hoursData || [])
@@ -82,19 +107,18 @@ export function LaborHoursTracker() {
         work_date: form.work_date?.toISOString().split("T")[0],
         job_category: form.job_category,
         hourly_rate: form.hourly_rate ? Number.parseFloat(form.hourly_rate) : null,
-        contractor_id: "00000000-0000-0000-0000-000000000000", // This would be dynamic
+        contractor_id: "00000000-0000-0000-0000-000000000000"
       })
 
       if (error) throw error
 
-      // Reset form and refresh data
       setForm({
         project_id: "",
         worker_id: "",
         hours_worked: "",
         work_date: undefined,
         job_category: "",
-        hourly_rate: "",
+        hourly_rate: ""
       })
       setShowForm(false)
       fetchData()
@@ -106,7 +130,6 @@ export function LaborHoursTracker() {
   const verifyHours = async (id: string) => {
     try {
       const { error } = await supabase.from("labor_hours").update({ verified: true }).eq("id", id)
-
       if (error) throw error
       fetchData()
     } catch (error) {
@@ -129,7 +152,6 @@ export function LaborHoursTracker() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Labor Hours Tracking</h2>
@@ -141,7 +163,6 @@ export function LaborHoursTracker() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -201,7 +222,6 @@ export function LaborHoursTracker() {
         </Card>
       </div>
 
-      {/* Labor Hours Table */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Labor Hours</CardTitle>
@@ -243,7 +263,6 @@ export function LaborHoursTracker() {
         </CardContent>
       </Card>
 
-      {/* Add Hours Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-md">
@@ -342,12 +361,8 @@ export function LaborHoursTracker() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
-                    Submit
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                    Cancel
-                  </Button>
+                  <Button type="submit" className="flex-1">Submit</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
                 </div>
               </form>
             </CardContent>
