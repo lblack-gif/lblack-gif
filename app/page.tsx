@@ -90,8 +90,7 @@ const navigation = [
 ]
 
 const getCategoryColors = (category: string, isActive: boolean) => {
-  if (isActive) return "bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-md"
-  const hoverMap = {
+  const hoverMap: Record<string, string> = {
     core: "blue",
     compliance: "green",
     management: "purple",
@@ -99,7 +98,14 @@ const getCategoryColors = (category: string, isActive: boolean) => {
     integration: "teal",
     admin: "gray",
   }
-  return `text-slate-700 hover:bg-${hoverMap[category]}-500 hover:text-white hover:border-l-4 hover:border-l-${hoverMap[category]}-600 transition-all duration-200`
+
+  const hoverColor = hoverMap[category] || "slate"
+
+  if (isActive) {
+    return `bg-gradient-to-r from-${hoverColor}-600 to-${hoverColor}-400 text-white shadow-md`
+  }
+
+  return `text-slate-700 hover:bg-${hoverColor}-500 hover:text-white hover:border-l-4 hover:border-l-${hoverColor}-600 transition-all duration-200`
 }
 
 export default function Home() {
