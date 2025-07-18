@@ -9,31 +9,39 @@ import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
-// ✅ Custom Navbar with Chevron Icons
-const CustomNavbar = ({
-  onPreviousClick,
-  onNextClick,
+// ✅ Fixed Custom Navigation (per new API)
+function CustomNavigation({
+  nextMonth,
+  previousMonth,
+  goToMonth,
 }: {
-  onPreviousClick: () => void
-  onNextClick: () => void
-}) => (
-  <div className="flex justify-between items-center px-2">
-    <button
-      onClick={onPreviousClick}
-      className="p-1 rounded hover:bg-slate-100"
-      type="button"
-    >
-      <ChevronLeft className="h-4 w-4" />
-    </button>
-    <button
-      onClick={onNextClick}
-      className="p-1 rounded hover:bg-slate-100"
-      type="button"
-    >
-      <ChevronRight className="h-4 w-4" />
-    </button>
-  </div>
-)
+  nextMonth?: Date
+  previousMonth?: Date
+  goToMonth: (date: Date) => void
+}) {
+  return (
+    <div className="flex justify-between items-center px-2">
+      {previousMonth && (
+        <button
+          type="button"
+          onClick={() => goToMonth(previousMonth)}
+          className="p-1 rounded hover:bg-slate-100"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {nextMonth && (
+        <button
+          type="button"
+          onClick={() => goToMonth(nextMonth)}
+          className="p-1 rounded hover:bg-slate-100"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  )
+}
 
 function Calendar({
   className,
@@ -80,7 +88,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Navbar: CustomNavbar,
+        // 👇 This is now safe: only use built-in types
+        Navigation: CustomNavigation,
       }}
       {...props}
     />
