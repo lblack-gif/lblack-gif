@@ -66,183 +66,40 @@ type ActiveView =
   | "mobile-interface"
   | "training-support"
 
-// Organized navigation with logical grouping and enhanced visual hierarchy
 const navigation = [
-  // Core Overview & Dashboard
-  {
-    id: "overview",
-    label: "Overview",
-    icon: LayoutDashboard,
-    category: "core",
-    description: "Main dashboard and system overview",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    category: "core",
-    description: "System alerts and updates",
-  },
-
-  // Primary Compliance Features
-  {
-    id: "project-compliance",
-    label: "Project Compliance Tracking",
-    icon: ClipboardCheck,
-    category: "compliance",
-    description: "Track project compliance status",
-  },
-  {
-    id: "email-triage",
-    label: "Email Triage",
-    icon: Mail,
-    category: "compliance",
-    description: "Automated email processing",
-  },
-  {
-    id: "labor-hours",
-    label: "Labor Hours Tracking",
-    icon: Clock,
-    category: "compliance",
-    description: "Monitor labor hour requirements",
-  },
-
-  // Management Features
-  {
-    id: "workers",
-    label: "Workers",
-    icon: Users,
-    category: "management",
-    description: "Worker management and tracking",
-  },
-  {
-    id: "contractor-performance",
-    label: "Contractor Performance",
-    icon: TrendingUp,
-    category: "management",
-    description: "Contractor performance metrics",
-  },
-
-  // Reporting & Analytics
-  {
-    id: "comprehensive-reports",
-    label: "Comprehensive Reports",
-    icon: FileBarChart,
-    category: "reporting",
-    description: "Detailed compliance reports",
-  },
-  {
-    id: "automated-reports",
-    label: "Automated Reports",
-    icon: Zap,
-    category: "reporting",
-    description: "Scheduled report generation",
-  },
-  {
-    id: "qualitative-reports",
-    label: "Qualitative Reports",
-    icon: FileText,
-    category: "reporting",
-    description: "Qualitative analysis reports",
-  },
-  {
-    id: "performance-analytics",
-    label: "Performance Analytics",
-    icon: BarChart3,
-    category: "reporting",
-    description: "Advanced performance metrics",
-  },
-
-  // Integration & AI
-  {
-    id: "ai-integration",
-    label: "AI Integration",
-    icon: Brain,
-    category: "integration",
-    description: "AI-powered compliance assistance",
-  },
-  {
-    id: "payroll-integration",
-    label: "Payroll Integration",
-    icon: Link,
-    category: "integration",
-    description: "Payroll system connectivity",
-  },
-  {
-    id: "hud-integration",
-    label: "HUD Integration",
-    icon: Building2,
-    category: "integration",
-    description: "HUD system integration",
-  },
-  {
-    id: "geographic-mapping",
-    label: "Geographic Mapping",
-    icon: MapPin,
-    category: "integration",
-    description: "Location-based tracking",
-  },
-
-  // System Administration
-  {
-    id: "system-monitoring",
-    label: "System Monitoring",
-    icon: Activity,
-    category: "admin",
-    description: "System health and performance",
-  },
-  {
-    id: "security-management",
-    label: "Security Management",
-    icon: Shield,
-    category: "admin",
-    description: "Security settings and access control",
-  },
-  {
-    id: "audit-accountability",
-    label: "Audit & Accountability",
-    icon: UserCheck,
-    category: "admin",
-    description: "Audit trails and accountability",
-  },
-  {
-    id: "mobile-interface",
-    label: "Mobile Interface",
-    icon: Smartphone,
-    category: "admin",
-    description: "Mobile app configuration",
-  },
-  {
-    id: "training-support",
-    label: "Training & Support",
-    icon: BookOpen,
-    category: "admin",
-    description: "Training resources and support",
-  },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, category: "core", description: "Main dashboard and system overview" },
+  { id: "notifications", label: "Notifications", icon: Bell, category: "core", description: "System alerts and updates" },
+  { id: "project-compliance", label: "Project Compliance Tracking", icon: ClipboardCheck, category: "compliance", description: "Track project compliance status" },
+  { id: "email-triage", label: "Email Triage", icon: Mail, category: "compliance", description: "Automated email processing" },
+  { id: "labor-hours", label: "Labor Hours Tracking", icon: Clock, category: "compliance", description: "Monitor labor hour requirements" },
+  { id: "workers", label: "Workers", icon: Users, category: "management", description: "Worker management and tracking" },
+  { id: "contractor-performance", label: "Contractor Performance", icon: TrendingUp, category: "management", description: "Contractor performance metrics" },
+  { id: "comprehensive-reports", label: "Comprehensive Reports", icon: FileBarChart, category: "reporting", description: "Detailed compliance reports" },
+  { id: "automated-reports", label: "Automated Reports", icon: Zap, category: "reporting", description: "Scheduled report generation" },
+  { id: "qualitative-reports", label: "Qualitative Reports", icon: FileText, category: "reporting", description: "Qualitative analysis reports" },
+  { id: "performance-analytics", label: "Performance Analytics", icon: BarChart3, category: "reporting", description: "Advanced performance metrics" },
+  { id: "ai-integration", label: "AI Integration", icon: Brain, category: "integration", description: "AI-powered compliance assistance" },
+  { id: "payroll-integration", label: "Payroll Integration", icon: Link, category: "integration", description: "Payroll system connectivity" },
+  { id: "hud-integration", label: "HUD Integration", icon: Building2, category: "integration", description: "HUD system integration" },
+  { id: "geographic-mapping", label: "Geographic Mapping", icon: MapPin, category: "integration", description: "Location-based tracking" },
+  { id: "system-monitoring", label: "System Monitoring", icon: Activity, category: "admin", description: "System health and performance" },
+  { id: "security-management", label: "Security Management", icon: Shield, category: "admin", description: "Security settings and access control" },
+  { id: "audit-accountability", label: "Audit & Accountability", icon: UserCheck, category: "admin", description: "Audit trails and accountability" },
+  { id: "mobile-interface", label: "Mobile Interface", icon: Smartphone, category: "admin", description: "Mobile app configuration" },
+  { id: "training-support", label: "Training & Support", icon: BookOpen, category: "admin", description: "Training resources and support" },
 ]
 
-// Color schemes for different categories
 const getCategoryColors = (category: string, isActive: boolean) => {
-  if (isActive) {
-    return "bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-md"
+  if (isActive) return "bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-md"
+  const hoverMap = {
+    core: "blue",
+    compliance: "green",
+    management: "purple",
+    reporting: "orange",
+    integration: "teal",
+    admin: "gray",
   }
-
-  switch (category) {
-    case "core":
-      return "text-slate-700 hover:bg-blue-500 hover:text-white hover:border-l-4 hover:border-l-blue-600 transition-all duration-200"
-    case "compliance":
-      return "text-slate-700 hover:bg-green-500 hover:text-white hover:border-l-4 hover:border-l-green-600 transition-all duration-200"
-    case "management":
-      return "text-slate-700 hover:bg-purple-500 hover:text-white hover:border-l-4 hover:border-l-purple-600 transition-all duration-200"
-    case "reporting":
-      return "text-slate-700 hover:bg-orange-500 hover:text-white hover:border-l-4 hover:border-l-orange-600 transition-all duration-200"
-    case "integration":
-      return "text-slate-700 hover:bg-teal-500 hover:text-white hover:border-l-4 hover:border-l-teal-600 transition-all duration-200"
-    case "admin":
-      return "text-slate-700 hover:bg-gray-500 hover:text-white hover:border-l-4 hover:border-l-gray-600 transition-all duration-200"
-    default:
-      return "text-slate-700 hover:bg-slate-500 hover:text-white hover:border-l-4 hover:border-l-slate-600 transition-all duration-200"
-  }
+  return `text-slate-700 hover:bg-${hoverMap[category]}-500 hover:text-white hover:border-l-4 hover:border-l-${hoverMap[category]}-600 transition-all duration-200`
 }
 
 export default function Home() {
@@ -250,62 +107,35 @@ export default function Home() {
 
   const renderActiveView = () => {
     switch (activeView) {
-      case "overview":
-        return <Dashboard />
-      case "notifications":
-        return <NotificationSystem />
-      case "project-compliance":
-        return <SystemMonitoring />
-      case "performance-analytics":
-        return <PerformanceDashboard />
-      case "ai-integration":
-        return <AIIntegration />
-      case "email-triage":
-        return <EmailTriage />
-      case "labor-hours":
-        return <LaborHoursTracker />
-      case "payroll-integration":
-        return <PayrollIntegration />
-      case "geographic-mapping":
-        return <GeographicMapping />
-      case "automated-reports":
-        return <AutomatedReporting />
-      case "qualitative-reports":
-        return <QualitativeReporting />
-      case "contractor-performance":
-        return <ContractorManagement />
-      case "audit-accountability":
-        return <AuditAccountability />
-      case "mobile-interface":
-        return <MobileInterface />
-      case "security-management":
-        return <SecurityManagement />
-      case "hud-integration":
-        return <HudIntegration />
-      case "training-support":
-        return <TrainingSupport />
-      case "workers":
-        return <WorkerManagement />
-      case "comprehensive-reports":
-        return <ComprehensiveReporting />
-      case "system-monitoring":
-        return <SystemMonitoring />
-      default:
-        return <Dashboard />
+      case "overview": return <Dashboard />
+      case "notifications": return <NotificationSystem />
+      case "project-compliance": return <SystemMonitoring />
+      case "performance-analytics": return <PerformanceDashboard />
+      case "ai-integration": return <AIIntegration />
+      case "email-triage": return <EmailTriage />
+      case "labor-hours": return <LaborHoursTracker />
+      case "payroll-integration": return <PayrollIntegration />
+      case "geographic-mapping": return <GeographicMapping />
+      case "automated-reports": return <AutomatedReporting />
+      case "qualitative-reports": return <QualitativeReporting />
+      case "contractor-performance": return <ContractorManagement />
+      case "audit-accountability": return <AuditAccountability />
+      case "mobile-interface": return <MobileInterface />
+      case "security-management": return <SecurityManagement />
+      case "hud-integration": return <HudIntegration />
+      case "training-support": return <TrainingSupport />
+      case "workers": return <WorkerManagement />
+      case "comprehensive-reports": return <ComprehensiveReporting />
+      case "system-monitoring": return <SystemMonitoring />
+      default: return <Dashboard />
     }
   }
 
-  // Group navigation items by category for better visual organization
-  const groupedNavigation = navigation.reduce(
-    (acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = []
-      }
-      acc[item.category].push(item)
-      return acc
-    },
-    {} as Record<string, typeof navigation>,
-  )
+  const groupedNavigation = navigation.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = []
+    acc[item.category].push(item)
+    return acc
+  }, {} as Record<string, typeof navigation>)
 
   const categoryLabels = {
     core: "Core Dashboard",
@@ -318,7 +148,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Enhanced Sidebar */}
       <div className="w-72 bg-white shadow-lg border-r border-slate-200 p-4 overflow-y-auto">
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-2">
@@ -331,7 +160,6 @@ export default function Home() {
           </div>
           <p className="text-sm text-slate-600 ml-13">Section 3 Management System</p>
         </div>
-
         <nav className="space-y-6">
           {Object.entries(categoryLabels).map(([category, label]) => (
             <div key={category} className="space-y-1">
@@ -341,10 +169,7 @@ export default function Home() {
                   <Button
                     key={item.id}
                     variant={activeView === item.id ? "default" : "ghost"}
-                    className={`w-full justify-start text-sm h-11 px-3 ${getCategoryColors(
-                      item.category,
-                      activeView === item.id,
-                    )}`}
+                    className={`w-full justify-start text-sm h-11 px-3 ${getCategoryColors(item.category, activeView === item.id)}`}
                     onClick={() => setActiveView(item.id as ActiveView)}
                     title={item.description}
                   >
@@ -358,9 +183,10 @@ export default function Home() {
         </nav>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-full">{renderActiveView()}</div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-full">
+          {renderActiveView()}
+        </div>
       </div>
     </div>
   )
