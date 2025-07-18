@@ -9,6 +9,32 @@ import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
+// ✅ Custom Navbar with Chevron Icons
+const CustomNavbar = ({
+  onPreviousClick,
+  onNextClick,
+}: {
+  onPreviousClick: () => void
+  onNextClick: () => void
+}) => (
+  <div className="flex justify-between items-center px-2">
+    <button
+      onClick={onPreviousClick}
+      className="p-1 rounded hover:bg-slate-100"
+      type="button"
+    >
+      <ChevronLeft className="h-4 w-4" />
+    </button>
+    <button
+      onClick={onNextClick}
+      className="p-1 rounded hover:bg-slate-100"
+      type="button"
+    >
+      <ChevronRight className="h-4 w-4" />
+    </button>
+  </div>
+)
+
 function Calendar({
   className,
   classNames,
@@ -54,13 +80,12 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        Navbar: CustomNavbar,
       }}
       {...props}
     />
   )
 }
-Calendar.displayName = "Calendar"
 
+Calendar.displayName = "Calendar"
 export { Calendar }
