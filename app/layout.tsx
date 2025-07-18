@@ -19,17 +19,18 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Validate configuration on app startup
+  // Validate configuration on app startup - but don't throw errors
   try {
     validateConfig()
   } catch (error) {
+    // Log error but don't crash the app
     console.error("Configuration validation failed:", error)
   }
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <Toaster />
         </ThemeProvider>

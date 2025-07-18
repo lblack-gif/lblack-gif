@@ -1,23 +1,47 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/:path*",      "destination": "/:path*" }
+  "name": "section3-compliance-system",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
   ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
       ]
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL":      "https://yfidbznghtzuaodtinxl.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmaWRiem5naHR6dWFvZHRpbnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3ODg3NDcsImV4cCI6MjA2NTM2NDc0N30.uoqEwZdmmTBRby0SjFpJ_DyQbDT-jn6fBAShVuZTAzA",
-    "SUPABASE_SERVICE_ROLE_KEY":     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmaWRiem5naHR6dWFvZHRpbnhsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTc4ODc0NywiZXhwIjoyMDY1MzY0NzQ3fQ.WPX9Ufjs6lO-ZgiBtFXqwWbGJRz9i_b53JUdHKJ_sxQ",
-    "NEXT_PUBLIC_SUPABASE_DB_URL":   "postgresql://postgres:.Welcome1%40%3F@db.yfidbznghtzuaodtinxl.supabase.co:5432/postgres"
-  }
+  ]
 }

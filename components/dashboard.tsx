@@ -2,530 +2,253 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  LineChart,
-  Line,
-} from "recharts"
-import {
-  Users,
-  Clock,
-  TrendingUp,
-  CheckCircle,
-  Target,
-  Award,
-  Building2,
-  AlertTriangle,
-  FileBarChart,
-  UserCheck,
-  Calendar,
-} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { Users, Building2, Clock, AlertTriangle, CheckCircle, TrendingUp, Mail, FileText, Calendar } from "lucide-react"
+import { mockData } from "@/lib/supabase"
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"]
 
 export function Dashboard() {
-  const [complianceData, setComplianceData] = useState({
-    totalHours: 12450,
-    section3Hours: 3890,
-    targetedSection3Hours: 2340,
-    section3Percentage: 31.2,
-    targetedSection3Percentage: 18.8,
-    requiredPercentage: 25,
-    targetedRequiredPercentage: 15,
-    totalWorkers: 156,
-    section3Workers: 48,
-    targetedSection3Workers: 29,
-    activeProjects: 8,
-    complianceStatus: "compliant",
-  })
+  const [activeTab, setActiveTab] = useState("overview")
+  const [totalHours, setTotalHours] = useState(12450)
+  const [section3Hours, setSection3Hours] = useState(3890)
 
-  const [projectData] = useState([
-    {
-      name: "Affordable Housing Phase 1",
-      section3: 35,
-      targeted: 22,
-      total: 100,
-      status: "compliant",
-      contractor: "ABC Construction",
-    },
-    {
-      name: "Community Center Renovation",
-      section3: 28,
-      targeted: 18,
-      total: 85,
-      status: "compliant",
-      contractor: "XYZ Builders",
-    },
-    {
-      name: "Senior Housing Development",
-      section3: 22,
-      targeted: 12,
-      total: 95,
-      status: "at-risk",
-      contractor: "Metro Contractors",
-    },
-    {
-      name: "Mixed-Use Development",
-      section3: 40,
-      targeted: 25,
-      total: 120,
-      status: "compliant",
-      contractor: "City Development",
-    },
-    {
-      name: "Public Housing Modernization",
-      section3: 33,
-      targeted: 20,
-      total: 110,
-      status: "compliant",
-      contractor: "ABC Construction",
-    },
-  ])
+  // Calculate compliance percentage
+  const compliancePercentage = Math.round((section3Hours / totalHours) * 100)
 
-  const [monthlyTrends] = useState([
-    { month: "Jan", section3: 28, targeted: 16, required: 25, targetedRequired: 15 },
-    { month: "Feb", section3: 29, targeted: 17, required: 25, targetedRequired: 15 },
-    { month: "Mar", section3: 31, targeted: 18, required: 25, targetedRequired: 15 },
-    { month: "Apr", section3: 30, targeted: 19, required: 25, targetedRequired: 15 },
-    { month: "May", section3: 32, targeted: 20, required: 25, targetedRequired: 15 },
-    { month: "Jun", section3: 31, targeted: 19, required: 25, targetedRequired: 15 },
-  ])
+  // Mock data for charts
+  const monthlyData = [
+    { month: "Jan", total: 2100, section3: 650 },
+    { month: "Feb", total: 2300, section3: 720 },
+    { month: "Mar", total: 2200, section3: 690 },
+    { month: "Apr", total: 2400, section3: 750 },
+    { month: "May", total: 2150, section3: 670 },
+    { month: "Jun", total: 2350, section3: 730 },
+  ]
 
-  const [contractorPerformance] = useState([
-    {
-      name: "ABC Construction",
-      overallScore: 92,
-      section3Rate: 35,
-      targetedRate: 22,
-      projects: 2,
-      totalHours: 4200,
-      complianceHistory: [
-        { month: "Jan", score: 88 },
-        { month: "Feb", score: 90 },
-        { month: "Mar", score: 91 },
-        { month: "Apr", score: 89 },
-        { month: "May", score: 93 },
-        { month: "Jun", score: 92 },
-      ],
-      status: "excellent",
-    },
-    {
-      name: "XYZ Builders",
-      overallScore: 78,
-      section3Rate: 28,
-      targetedRate: 18,
-      projects: 1,
-      totalHours: 2100,
-      complianceHistory: [
-        { month: "Jan", score: 75 },
-        { month: "Feb", score: 76 },
-        { month: "Mar", score: 79 },
-        { month: "Apr", score: 77 },
-        { month: "May", score: 80 },
-        { month: "Jun", score: 78 },
-      ],
-      status: "good",
-    },
-    {
-      name: "Metro Contractors",
-      overallScore: 65,
-      section3Rate: 22,
-      targetedRate: 12,
-      projects: 1,
-      totalHours: 1800,
-      complianceHistory: [
-        { month: "Jan", score: 70 },
-        { month: "Feb", score: 68 },
-        { month: "Mar", score: 62 },
-        { month: "Apr", score: 64 },
-        { month: "May", score: 67 },
-        { month: "Jun", score: 65 },
-      ],
-      status: "needs-improvement",
-    },
-    {
-      name: "City Development",
-      overallScore: 88,
-      section3Rate: 40,
-      targetedRate: 25,
-      projects: 1,
-      totalHours: 2800,
-      complianceHistory: [
-        { month: "Jan", score: 85 },
-        { month: "Feb", score: 87 },
-        { month: "Mar", score: 89 },
-        { month: "Apr", score: 86 },
-        { month: "May", score: 90 },
-        { month: "Jun", score: 88 },
-      ],
-      status: "excellent",
-    },
-  ])
+  const complianceData = [
+    { name: "Section 3 Hours", value: section3Hours, color: "#00C49F" },
+    { name: "Regular Hours", value: totalHours - section3Hours, color: "#0088FE" },
+  ]
 
-  const [complianceAlerts] = useState([
-    {
-      type: "warning",
-      message: "Metro Contractors project below 25% Section 3 threshold",
-      project: "Senior Housing Development",
-      severity: "medium",
-      daysOverdue: 5,
-    },
-    {
-      type: "info",
-      message: "Quarterly HUD report due in 7 days",
-      project: "All Projects",
-      severity: "low",
-      daysOverdue: 0,
-    },
-    {
-      type: "success",
-      message: "ABC Construction exceeded targeted Section 3 goals",
-      project: "Affordable Housing Phase 1",
-      severity: "low",
-      daysOverdue: 0,
-    },
-  ])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "compliant":
-      case "excellent":
-        return "text-green-600"
-      case "at-risk":
-      case "good":
-        return "text-yellow-600"
-      case "non-compliant":
-      case "needs-improvement":
-        return "text-red-600"
-      default:
-        return "text-gray-600"
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "compliant":
-      case "excellent":
-        return (
-          <Badge className="bg-green-100 text-green-800">
-            {status === "compliant" ? "Compliant" : "Excellent"}
-          </Badge>
-        )
-      case "at-risk":
-      case "good":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800">
-            {status === "at-risk" ? "At Risk" : "Good"}
-          </Badge>
-        )
-      case "non-compliant":
-      case "needs-improvement":
-        return (
-          <Badge className="bg-red-100 text-red-800">
-            {status === "non-compliant" ? "Non-Compliant" : "Needs Improvement"}
-          </Badge>
-        )
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>
-    }
-  }
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />
-      case "info":
-        return <Calendar className="h-4 w-4 text-blue-600" />
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-600" />
-      default:
-        return <AlertTriangle className="h-4 w-4 text-gray-600" />
-    }
-  }
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
-  const pieData = [
-    { name: "Targeted Section 3", value: complianceData.targetedSection3Hours, fill: "#0d9488" },
-    {
-      name: "Section 3 (Non-Targeted)",
-      value: complianceData.section3Hours - complianceData.targetedSection3Hours,
-      fill: "#10b981",
-    },
-    {
-      name: "Non-Section 3",
-      value: complianceData.totalHours - complianceData.section3Hours,
-      fill: "#6b7280",
-    },
+  const projectData = [
+    { name: "Metro Housing", hours: 1200, compliance: 32 },
+    { name: "Senior Complex", hours: 800, compliance: 28 },
+    { name: "Community Center", hours: 950, compliance: 35 },
+    { name: "Affordable Units", hours: 1340, compliance: 30 },
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Section 3 Compliance Dashboard</h1>
-          <p className="text-gray-600 mt-1">Real-time monitoring and compliance tracking</p>
+          <h2 className="text-3xl font-bold tracking-tight">Section 3 Compliance Dashboard</h2>
+          <p className="text-muted-foreground">Real-time monitoring and compliance tracking</p>
         </div>
         <div className="flex items-center space-x-2">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <span className="text-sm font-medium text-green-600">System Operational</span>
+          <Button variant="outline" size="sm">
+            <FileText className="mr-2 h-4 w-4" />
+            Generate Report
+          </Button>
+          <Button size="sm">
+            <Mail className="mr-2 h-4 w-4" />
+            Send Update
+          </Button>
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Labor Hours */}
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {complianceData.totalHours.toLocaleString()}
-            </div>
-            <p className="text-xs text-gray-600 mt-1">Across all active projects</p>
-          </CardContent>
-        </Card>
-
-        {/* Section 3 Hours */}
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {complianceData.section3Hours.toLocaleString()}
-            </div>
-            <div className="flex items-center mt-1">
-              <span className="text-sm font-medium text-green-600">
-                {complianceData.section3Percentage}%
-              </span>
-              <span className="text-xs text-gray-600 ml-1">of total hours</span>
-            </div>
-            <Progress value={complianceData.section3Percentage} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
-
-        {/* Targeted Section 3 Hours */}
-        <Card className="border-l-4 border-l-teal-500">
-          <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Targeted Section 3 Hours</CardTitle>
-            <Target className="h-4 w-4 text-teal-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-teal-600">
-              {complianceData.targetedSection3Hours.toLocaleString()}
-            </div>
-            <div className="flex items-center mt-1">
-              <span className="text-sm font-medium text-teal-600">
-                {complianceData.targetedSection3Percentage}%
-              </span>
-              <span className="text-xs text-gray-600 ml-1">of total hours</span>
-            </div>
-            <Progress value={complianceData.targetedSection3Percentage} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
-
-        {/* Compliance Status */}
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="flex items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
-            <Award className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {getStatusBadge(complianceData.complianceStatus)}
-              <div className="text-xs text-gray-600">
-                <div>
-                  Section 3: {complianceData.section3Percentage}% (req:{" "}
-                  {complianceData.requiredPercentage}%)
-                </div>
-                <div>
-                  Targeted: {complianceData.targetedSection3Percentage}% (req:{" "}
-                  {complianceData.targetedRequiredPercentage}%)
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Analytics */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="compliance-tracking">Compliance Tracking</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance Tracking</TabsTrigger>
           <TabsTrigger value="workers">Workers</TabsTrigger>
-          <TabsTrigger value="contractor-performance">Contractor Performance</TabsTrigger>
+          <TabsTrigger value="performance">Contractor Performance</TabsTrigger>
         </TabsList>
 
-        {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Compliance Breakdown Chart */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalHours.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Across all active projects</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{section3Hours.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">{compliancePercentage}% of total hours</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">8</div>
+                <p className="text-xs text-muted-foreground">2 new this month</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">Compliant</div>
+                <p className="text-xs text-muted-foreground">Above 25% threshold</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardHeader>
+                <CardTitle>Monthly Labor Hours Trend</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="total" fill="#0088FE" name="Total Hours" />
+                    <Bar dataKey="section3" fill="#00C49F" name="Section 3 Hours" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card className="col-span-3">
               <CardHeader>
                 <CardTitle>Compliance Breakdown</CardTitle>
                 <CardDescription>Current labor hour distribution</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <PieChart>
                     <Pie
-                      data={pieData}
+                      data={complianceData}
                       cx="50%"
                       cy="50%"
-                      outerRadius={100}
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                    />
-                    <Tooltip formatter={(value) => [value.toLocaleString(), "Hours"]} />
+                    >
+                      {complianceData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Recent Alerts */}
+          <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Recent Alerts</CardTitle>
                 <CardDescription>Important compliance notifications</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {complianceAlerts.map((alert, idx) => (
-                    <div key={idx} className="flex items-start space-x-3 p-3 border rounded-lg">
-                      {getAlertIcon(alert.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{alert.message}</p>
-                        <p className="text-xs text-gray-500">{alert.project}</p>
-                      </div>
-                      {alert.daysOverdue > 0 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {alert.daysOverdue}d overdue
-                        </Badge>
-                      )}
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="flex items-center justify-between">
+                      <span>Metro Contractors project below 25% Section 3 threshold</span>
+                      <Badge variant="destructive">5d overdue</Badge>
                     </div>
-                  ))}
-                </div>
+                  </AlertDescription>
+                </Alert>
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="flex items-center justify-between">
+                      <span>Senior Housing Development compliance report submitted</span>
+                      <Badge variant="secondary">2h ago</Badge>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+                <Alert>
+                  <TrendingUp className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="flex items-center justify-between">
+                      <span>Overall Section 3 compliance improved by 3% this month</span>
+                      <Badge variant="secondary">1d ago</Badge>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Common tasks and shortcuts</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button variant="outline" className="w-full justify-start bg-transparent">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Generate Monthly Report
+                </Button>
+                <Button variant="outline" className="w-full justify-start bg-transparent">
+                  <Users className="mr-2 h-4 w-4" />
+                  Add New Worker
+                </Button>
+                <Button variant="outline" className="w-full justify-start bg-transparent">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Create Project
+                </Button>
+                <Button variant="outline" className="w-full justify-start bg-transparent">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Schedule Audit
+                </Button>
               </CardContent>
             </Card>
           </div>
-
-          {/* Worker Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Worker Statistics</CardTitle>
-              <CardDescription>Current workforce composition</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Total Workers</span>
-                    <span className="text-2xl font-bold">{complianceData.totalWorkers}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Section 3 Workers</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {complianceData.section3Workers}
-                    </span>
-                  </div>
-                  <Progress
-                    value={(complianceData.section3Workers / complianceData.totalWorkers) * 100}
-                    className="h-2"
-                  />
-                  <div className="text-xs text-gray-500">
-                    {((complianceData.section3Workers / complianceData.totalWorkers) * 100).toFixed(1)}% of workforce
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Targeted Section 3 Workers</span>
-                    <span className="text-sm font-medium text-teal-600">
-                      {complianceData.targetedSection3Workers}
-                    </span>
-                  </div>
-                  <Progress
-                    value={(complianceData.targetedSection3Workers / complianceData.totalWorkers) * 100}
-                    className="h-2"
-                  />
-                  <div className="text-xs text-gray-500">
-                    {((complianceData.targetedSection3Workers / complianceData.totalWorkers) * 100).toFixed(1)}% of workforce
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
-        {/* Projects */}
         <TabsContent value="projects" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Project Compliance Status</CardTitle>
-              <CardDescription>Section 3 and Targeted Section 3 performance by project</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={projectData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="targeted" fill="#0d9488" name="Targeted Section 3 %" />
-                  <Bar dataKey="section3" fill="#10b981" name="Section 3 %" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Project Details Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Details</CardTitle>
-              <CardDescription>Detailed project information and contractor assignments</CardDescription>
+              <CardTitle>Project Performance</CardTitle>
+              <CardDescription>Section 3 compliance by project</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {projectData.map((project, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <h3 className="font-medium">{project.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        Contractor: {project.contractor}
-                      </p>
+                {projectData.map((project, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <p className="font-medium">{project.name}</p>
+                      <p className="text-sm text-muted-foreground">{project.hours} total hours</p>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        <div className="text-sm font-medium">
-                          Section 3: {project.section3}%
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Targeted: {project.targeted}%
-                        </div>
+                        <p className="font-medium">{project.compliance}%</p>
+                        <p className="text-sm text-muted-foreground">Section 3</p>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">{project.total}</div>
-                        <div className="text-xs text-gray-600">Total Hours</div>
-                      </div>
-                      {getStatusBadge(project.status)}
+                      <Progress value={project.compliance} className="w-20" />
+                      <Badge variant={project.compliance >= 25 ? "default" : "destructive"}>
+                        {project.compliance >= 25 ? "Compliant" : "Below Threshold"}
+                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -534,347 +257,112 @@ export function Dashboard() {
           </Card>
         </TabsContent>
 
-        {/* Compliance Tracking */}
-        <TabsContent value="compliance-tracking" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Compliance Trends</CardTitle>
-              <CardDescription>
-                Monthly Section 3 and Targeted Section 3 performance tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={monthlyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="section3"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    name="Section 3 %"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="targeted"
-                    stroke="#0d9488"
-                    strokeWidth={3}
-                    name="Targeted Section 3 %"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="required"
-                    stroke="#ef4444"
-                    strokeDasharray="5 5"
-                    name="Required %"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="targetedRequired"
-                    stroke="#f97316"
-                    strokeDasharray="5 5"
-                    name="Targeted Required %"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Current Compliance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {complianceData.section3Percentage}%
-                    </div>
-                    <p className="text-sm text-muted-foreground">Section 3 Rate</p>
-                    <Progress value={complianceData.section3Percentage} className="h-2 mt-2" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Targeted Compliance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-teal-600">
-                      {complianceData.targetedSection3Percentage}%
-                    </div>
-                    <p className="text-sm text-muted-foreground">Targeted Section 3 Rate</p>
-                    <Progress
-                      value={complianceData.targetedSection3Percentage}
-                      className="h-2 mt-2"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Hours Pending</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {(complianceData.totalHours * 0.15).toLocaleString()}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Verification Needed</p>
-                    <Progress value={15} className="h-2 mt-2" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Workers */}
-        <TabsContent value="workers" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <TabsContent value="compliance" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Active Workers</CardTitle>
+                <CardTitle>Current Compliance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  {complianceData.totalWorkers}
-                </div>
-                <p className="text-sm text-gray-600">Currently employed</p>
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Full-time</span>
-                    <span className="font-medium">124</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Part-time</span>
-                    <span className="font-medium">32</span>
-                  </div>
-                </div>
+                <div className="text-3xl font-bold text-green-600">{compliancePercentage}%</div>
+                <Progress value={compliancePercentage} className="mt-2" />
+                <p className="text-sm text-muted-foreground mt-2">Target: 25% minimum</p>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Section 3 Workers</CardTitle>
+                <CardTitle>Targeted Section 3</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">
-                  {complianceData.section3Workers}
-                </div>
-                <p className="text-sm text-gray-600">Verified Section 3 status</p>
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Newly hired</span>
-                    <span className="font-medium">12</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Existing</span>
-                    <span className="font-medium">36</span>
-                  </div>
-                </div>
+                <div className="text-3xl font-bold text-blue-600">8.2%</div>
+                <Progress value={82} className="mt-2" />
+                <p className="text-sm text-muted-foreground mt-2">Target: 5% minimum</p>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Targeted Section 3</CardTitle>
+                <CardTitle>Compliance Trend</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-teal-600">
-                  {complianceData.targetedSection3Workers}
-                </div>
-                <p className="text-sm text-gray-600">High-priority category</p>
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Public housing residents</span>
-                    <span className="font-medium">18</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Voucher holders</span>
-                    <span className="font-medium">11</span>
-                  </div>
-                </div>
+                <div className="text-3xl font-bold text-green-600">+3.2%</div>
+                <p className="text-sm text-muted-foreground">vs. last month</p>
+                <TrendingUp className="h-4 w-4 text-green-600 mt-2" />
               </CardContent>
             </Card>
           </div>
-
-          {/* Worker Skills and Training */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Worker Skills & Training</CardTitle>
-              <CardDescription>Section 3 worker development and capabilities</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <UserCheck className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <div className="text-lg font-bold">32</div>
-                  <div className="text-sm text-gray-600">Skilled Trades</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <Building2 className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                  <div className="text-lg font-bold">16</div>
-                  <div className="text-sm text-gray-600">Construction</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <FileBarChart className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                  <div className="text-lg font-bold">8</div>
-                  <div className="text-sm text-gray-600">Administrative</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <TrendingUp className="h-8 w-8 text-teal-600 mx-auto mb-2" />
-                  <div className="text-lg font-bold">24</div>
-                  <div className="text-sm text-gray-600">In Training</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
-        {/* Contractor Performance */}
-        <TabsContent value="contractor-performance" className="space-y-4">
+        <TabsContent value="workers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Contractor Performance Overview</CardTitle>
-              <CardDescription>
-                Section 3 compliance rates and performance metrics by contractor
-              </CardDescription>
+              <CardTitle>Worker Management</CardTitle>
+              <CardDescription>Section 3 worker verification and tracking</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {contractorPerformance.map((contractor, idx) => (
-                  <div key={idx} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <Building2 className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <h3 className="font-medium">{contractor.name}</h3>
-                          <p className="text-sm text-gray-600">
-                            {contractor.projects} active projects •{" "}
-                            {contractor.totalHours.toLocaleString()} total hours
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="text-lg font-bold">{contractor.overallScore}%</div>
-                          <div className="text-xs text-gray-600">Overall Score</div>
-                        </div>
-                        {getStatusBadge(contractor.status)}
-                      </div>
+                {mockData.workers.map((worker) => (
+                  <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <p className="font-medium">
+                        {worker.first_name} {worker.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{worker.email}</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <div className="text-lg font-bold text-green-600">
-                          {contractor.section3Rate}%
-                        </div>
-                        <div className="text-sm text-gray-600">Section 3 Rate</div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <div className="text-lg font-bold text-teal-600">
-                          {contractor.targetedRate}%
-                        </div>
-                        <div className="text-sm text-gray-600">Targeted Section 3</div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">
-                          {contractor.projects}
-                        </div>
-                        <div className="text-sm text-gray-600">Active Projects</div>
-                      </div>
-                    </div>
-
-                    {/* Performance Trend */}
-                    <div className="mt-4">
-                      <h4 className="text-sm font-medium mb-2">6-Month Performance Trend</h4>
-                      <ResponsiveContainer width="100%" height={100}>
-                        <LineChart data={contractor.complianceHistory}>
-                          <Line
-                            type="monotone"
-                            dataKey="score"
-                            stroke={
-                              contractor.status === "excellent"
-                                ? "#10b981"
-                                : contractor.status === "good"
-                                ? "#f59e0b"
-                                : "#ef4444"
-                            }
-                            strokeWidth={2}
-                            dot={false}
-                          />
-                          <Tooltip />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={worker.is_section3_worker ? "default" : "secondary"}>
+                        {worker.is_section3_worker ? "Section 3" : "Regular"}
+                      </Badge>
+                      {worker.is_targeted_section3_worker && <Badge variant="outline">Targeted</Badge>}
+                      <Badge variant={worker.verification_status === "verified" ? "default" : "destructive"}>
+                        {worker.verification_status}
+                      </Badge>
                     </div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Contractor Comparison */}
+        <TabsContent value="performance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Contractor Comparison</CardTitle>
-              <CardDescription>Side-by-side performance comparison</CardDescription>
+              <CardTitle>Contractor Performance</CardTitle>
+              <CardDescription>Section 3 compliance by contractor</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={contractorPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="section3Rate" fill="#10b981" name="Section 3 Rate %" />
-                  <Bar dataKey="targetedRate" fill="#0d9488" name="Targeted Section 3 Rate %" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-1">
+                    <p className="font-medium">ABC Construction</p>
+                    <p className="text-sm text-muted-foreground">Metro Housing Development</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="font-medium">28%</p>
+                      <p className="text-sm text-muted-foreground">Section 3</p>
+                    </div>
+                    <Badge variant="default">Compliant</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-1">
+                    <p className="font-medium">Metro Contractors</p>
+                    <p className="text-sm text-muted-foreground">Senior Housing Complex</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="font-medium">22%</p>
+                      <p className="text-sm text-muted-foreground">Section 3</p>
+                    </div>
+                    <Badge variant="destructive">Below Threshold</Badge>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common compliance management tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors">
-              <Users className="h-6 w-6 text-blue-600 mb-2" />
-              <div className="font-medium">Register Worker</div>
-              <div className="text-sm text-gray-600">Add new Section 3 worker</div>
-            </button>
-
-            <button className="p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors">
-              <Clock className="h-6 w-6 text-green-600 mb-2" />
-              <div className="font-medium">Log Hours</div>
-              <div className="text-sm text-gray-600">Record labor hours</div>
-            </button>
-
-            <button className="p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors">
-              <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
-              <div className="font-medium">Generate Report</div>
-              <div className="text-sm text-gray-600">Create compliance report</div>
-            </button>
-
-            <button className="p-4 text-left border rounded-lg hover:bg-gray-50 transition-colors">
-              <Target className="h-6 w-6 text-teal-600 mb-2" />
-              <div className="font-medium">Verify Status</div>
-              <div className="text-sm text-gray-600">Check targeted eligibility</div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

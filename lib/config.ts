@@ -108,19 +108,35 @@ export const config = {
   },
 }
 
+// Validate URL format
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
 // Validate required environment variables
 export function validateConfig() {
   const warnings: string[] = []
 
-  // Check for missing environment variables
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  // Check Supabase configuration
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl) {
     warnings.push("NEXT_PUBLIC_SUPABASE_URL not set - using demo mode")
+  } else if (!isValidUrl(supabaseUrl)) {
+    warnings.push(`NEXT_PUBLIC_SUPABASE_URL is not a valid URL: ${supabaseUrl} - using demo mode`)
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  if (!supabaseKey) {
     warnings.push("NEXT_PUBLIC_SUPABASE_ANON_KEY not set - using demo mode")
   }
 
+  // Check other configuration
   if (!process.env.OPENAI_API_KEY) {
     warnings.push("OPENAI_API_KEY not set - AI features will be limited")
   }
@@ -133,28 +149,38 @@ export function validateConfig() {
     warnings.push("ENCRYPTION_KEY not set - using demo key (not secure for production)")
   }
 
-  // Only throw errors in production for critical missing variables
-  if (process.env.NODE_ENV === "production") {
-    const criticalMissing = []
-
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) criticalMissing.push("NEXT_PUBLIC_SUPABASE_URL")
-    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) criticalMissing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    if (!process.env.JWT_SECRET) criticalMissing.push("JWT_SECRET")
-    if (!process.env.ENCRYPTION_KEY) criticalMissing.push("ENCRYPTION_KEY")
-
-    if (criticalMissing.length > 0) {
-      throw new Error(`Missing critical environment variables for production: ${criticalMissing.join(", ")}`)
-    }
-  } else {
-    // In development, just log warnings
-    if (warnings.length > 0) {
-      console.warn("⚠️ Configuration warnings:")
-      warnings.forEach((warning) => console.warn(`  - ${warning}`))
-    }
+  // In development, just log warnings - don't throw errors
+  if (warnings.length > 0) {
+    console.warn("⚠️ Configuration warnings:")
+    warnings.forEach((warning) => console.warn(`  - ${warning}`))
   }
 
   return {
     isValid: warnings.length === 0,
     warnings,
+    isDemoMode: !supabaseUrl || !isValidUrl(supabaseUrl) || !supabaseKey,
+  }
+}
+
+// Get configuration status without throwing errors
+export function getConfigStatus() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  return {
+    supabase: {
+      configured: !!(supabaseUrl && isValidUrl(supabaseUrl) && supabaseKey),
+      url: supabaseUrl || "",
+      hasValidUrl: supabaseUrl ? isValidUrl(supabaseUrl) : false,
+      hasKey: !!supabaseKey,
+    },
+    openai: {
+      configured: !!process.env.OPENAI_API_KEY,
+    },
+    security: {
+      jwtSecret: !!process.env.JWT_SECRET,
+      encryptionKey: !!process.env.ENCRYPTION_KEY,
+    },
+    isDemoMode: !supabaseUrl || !isValidUrl(supabaseUrl) || !supabaseKey,
   }
 }

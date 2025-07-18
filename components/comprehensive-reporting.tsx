@@ -94,22 +94,24 @@ export function ComprehensiveReporting() {
 
   const fetchReportingData = async () => {
     try {
-      const [projectsRes, laborRes, workersRes, contractorsRes] = await Promise.all([
+      // Fetch comprehensive metrics
+      const [projectsData, laborHoursData, workersData, contractorsData] = await Promise.all([
         supabase.from("projects").select("*"),
         supabase.from("labor_hours").select("*"),
         supabase.from("workers").select("*"),
         supabase.from("contractor_registrations").select("*"),
       ])
 
-      const projects = projectsRes.data || []
-      const laborRecords = laborRes.data || []
-      const workers = workersRes.data || []
-      const contractors = contractorsRes.data || []
+      const projects = projectsData.data || []
+      const laborHours = laborHoursData.data || []
+      const workers = workersData.data || []
+      const contractors = contractorsData.data || []
 
-      const totalLaborHours = laborRecords.reduce((sum, r) => sum + Number(r.hours_worked), 0)
-      const section3LaborHours = laborRecords
-        .filter((r) => r.workers?.is_section3_worker)
-        .reduce((sum, r) => sum + Number(r.hours_worked), 0)
+      // Calculate metrics
+      const totalLaborHours = laborHours.reduce((sum, record) => sum + Number(record.hours_worked), 0)
+      const section3LaborHours = laborHours
+        .filter((record) => record.workers?.is_section3_worker)
+        .reduce((sum, record) => sum + Number(record.hours_worked), 0)
 
       const complianceRate = totalLaborHours > 0 ? (section3LaborHours / totalLaborHours) * 100 : 0
 
@@ -124,20 +126,31 @@ export function ComprehensiveReporting() {
         targetedWorkers: workers.filter((w) => w.is_targeted_section3_worker).length,
         contractorsCount: contractors.filter((c) => c.registration_status === "approved").length,
         averageWage:
-          laborRecords.length > 0
-            ? laborRecords.reduce((sum, r) => sum + (r.hourly_rate || 0), 0) / laborRecords.length
+          laborHours.length > 0
+            ? laborHours.reduce((sum, record) => sum + (record.hourly_rate || 0), 0) / laborHours.length
             : 0,
       })
 
-      // Mock monthly data for demo
-      setMonthlyData([
+      // Generate mock monthly data for demonstration
+      const mockMonthlyData: MonthlyData[] = [
         { month: "Jan", totalHours: 2400, section3Hours: 720, complianceRate: 30, newHires: 12 },
-        /* …others… */
+        { month: "Feb", totalHours: 2800, section3Hours: 840, complianceRate: 30, newHires: 15 },
+        { month: "Mar", totalHours: 3200, section3Hours: 1120, complianceRate: 35, newHires: 18 },
+        { month: "Apr", totalHours: 2900, section3Hours: 1015, complianceRate: 35, newHires: 14 },
+        { month: "May", totalHours: 3400, section3Hours: 1190, complianceRate: 35, newHires: 20 },
+        { month: "Jun", totalHours: 3600, section3Hours: 1440, complianceRate: 40, newHires: 22 },
+        { month: "Jul", totalHours: 3800, section3Hours: 1520, complianceRate: 40, newHires: 25 },
+        { month: "Aug", totalHours: 3500, section3Hours: 1400, complianceRate: 40, newHires: 19 },
+        { month: "Sep", totalHours: 3300, section3Hours: 1320, complianceRate: 40, newHires: 17 },
+        { month: "Oct", totalHours: 3700, section3Hours: 1665, complianceRate: 45, newHires: 23 },
+        { month: "Nov", totalHours: 3900, section3Hours: 1755, complianceRate: 45, newHires: 26 },
         { month: "Dec", totalHours: 3200, section3Hours: 1600, complianceRate: 50, newHires: 21 },
-      ])
+      ]
 
-      // Mock project compliance for demo
-      setProjectCompliance([
+      setMonthlyData(mockMonthlyData)
+
+      // Generate mock project compliance data
+      const mockProjectCompliance: ProjectCompliance[] = [
         {
           projectName: "Downtown Housing",
           totalHours: 8500,
@@ -146,10 +159,43 @@ export function ComprehensiveReporting() {
           status: "active",
           riskLevel: "low",
         },
-        /* …others… */
-      ])
-    } catch (e) {
-      console.error("Error fetching reporting data:", e)
+        {
+          projectName: "Community Center",
+          totalHours: 6200,
+          section3Hours: 2170,
+          complianceRate: 35,
+          status: "active",
+          riskLevel: "medium",
+        },
+        {
+          projectName: "School Renovation",
+          totalHours: 4800,
+          section3Hours: 1200,
+          complianceRate: 25,
+          status: "active",
+          riskLevel: "high",
+        },
+        {
+          projectName: "Park Development",
+          totalHours: 3400,
+          section3Hours: 1360,
+          complianceRate: 40,
+          status: "completed",
+          riskLevel: "low",
+        },
+        {
+          projectName: "Bridge Repair",
+          totalHours: 5600,
+          section3Hours: 1680,
+          complianceRate: 30,
+          status: "active",
+          riskLevel: "medium",
+        },
+      ]
+
+      setProjectCompliance(mockProjectCompliance)
+    } catch (error) {
+      console.error("Error fetching reporting data:", error)
     } finally {
       setLoading(false)
     }
@@ -186,7 +232,7 @@ export function ComprehensiveReporting() {
   ]
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading comprehensive reports…</div>
+    return <div className="flex items-center justify-center h-64">Loading comprehensive reports...</div>
   }
 
   return (
@@ -217,10 +263,10 @@ export function ComprehensiveReporting() {
         </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Key Metrics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
-          <CardHeader className="flex items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Compliance Rate</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -230,8 +276,9 @@ export function ComprehensiveReporting() {
             <p className="text-xs text-muted-foreground mt-1">Target: 25% minimum</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -242,8 +289,9 @@ export function ComprehensiveReporting() {
             </p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -252,8 +300,9 @@ export function ComprehensiveReporting() {
             <p className="text-xs text-muted-foreground">of {metrics.totalProjects} total projects</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Section 3 Workers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -262,8 +311,9 @@ export function ComprehensiveReporting() {
             <p className="text-xs text-muted-foreground">{metrics.targetedWorkers} targeted hires</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Wage</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -274,17 +324,17 @@ export function ComprehensiveReporting() {
         </Card>
       </div>
 
-      {/* Alert if below target */}
+      {/* Compliance Status Alert */}
       {metrics.complianceRate < 25 && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Current compliance rate ({metrics.complianceRate.toFixed(1)}%) is below the 25% requirement. Immediate action required.
+            Current compliance rate ({metrics.complianceRate.toFixed(1)}%) is below the 25% Section 3 requirement.
+            Immediate action required to meet HUD standards.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -294,7 +344,6 @@ export function ComprehensiveReporting() {
           <TabsTrigger value="hud">HUD Reporting</TabsTrigger>
         </TabsList>
 
-        {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Labor Hours Distribution */}
@@ -311,13 +360,13 @@ export function ComprehensiveReporting() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [value.toLocaleString(), "Hours"]} />
@@ -340,13 +389,13 @@ export function ComprehensiveReporting() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
                       {workerDistribution.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [value, "Workers"]} />
@@ -360,7 +409,7 @@ export function ComprehensiveReporting() {
           <Card>
             <CardHeader>
               <CardTitle>Monthly Performance</CardTitle>
-              <CardDescription>Labor hours & compliance trends</CardDescription>
+              <CardDescription>Labor hours and compliance rate trends</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -386,12 +435,11 @@ export function ComprehensiveReporting() {
           </Card>
         </TabsContent>
 
-        {/* Trends */}
         <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Compliance Trends</CardTitle>
-              <CardDescription>Historical rate & hiring</CardDescription>
+              <CardDescription>Historical compliance rate and hiring trends</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -424,50 +472,48 @@ export function ComprehensiveReporting() {
           </Card>
         </TabsContent>
 
-        {/* Project Analysis */}
         <TabsContent value="projects" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Project Compliance Analysis</CardTitle>
-              <CardDescription>Per-project performance & risk</CardDescription>
+              <CardDescription>Individual project performance and risk assessment</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {projectCompliance.map((proj, idx) => {
-                  const status = getComplianceStatus(proj.complianceRate)
-                  const Icon = status.icon
+                {projectCompliance.map((project, index) => {
+                  const complianceStatus = getComplianceStatus(project.complianceRate)
+                  const Icon = complianceStatus.icon
+
                   return (
-                    <div key={idx} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{proj.projectName}</h3>
-                          <Badge variant={status.color as any}>
+                          <h3 className="font-semibold">{project.projectName}</h3>
+                          <Badge variant={complianceStatus.color as any}>
                             <Icon className="h-3 w-3 mr-1" />
-                            {status.status}
+                            {complianceStatus.status}
                           </Badge>
-                          <Badge variant={getRiskColor(proj.riskLevel) as any}>
-                            {proj.riskLevel} risk
-                          </Badge>
+                          <Badge variant={getRiskColor(project.riskLevel) as any}>{project.riskLevel} risk</Badge>
                         </div>
                         <div className="grid grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Total Hours</p>
-                            <p className="font-medium">{proj.totalHours.toLocaleString()}</p>
+                            <p className="font-medium">{project.totalHours.toLocaleString()}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Section 3 Hours</p>
-                            <p className="font-medium">{proj.section3Hours.toLocaleString()}</p>
+                            <p className="font-medium">{project.section3Hours.toLocaleString()}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Compliance Rate</p>
-                            <p className="font-medium">{proj.complianceRate}%</p>
+                            <p className="font-medium">{project.complianceRate}%</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Status</p>
-                            <p className="font-medium capitalize">{proj.status}</p>
+                            <p className="font-medium capitalize">{project.status}</p>
                           </div>
                         </div>
-                        <Progress value={proj.complianceRate} className="mt-2" />
+                        <Progress value={project.complianceRate} className="mt-2" />
                       </div>
                       <Button variant="outline" size="sm">
                         View Details
@@ -480,7 +526,6 @@ export function ComprehensiveReporting() {
           </Card>
         </TabsContent>
 
-        {/* Workforce */}
         <TabsContent value="workforce" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
@@ -542,21 +587,18 @@ export function ComprehensiveReporting() {
                     <span>25%</span>
                   </div>
                   <Progress value={metrics.complianceRate} />
-                  <p className="text-xs text-muted-foreground">
-                    Current: {metrics.complianceRate.toFixed(1)}%
-                  </p>
+                  <p className="text-xs text-muted-foreground">Current: {metrics.complianceRate.toFixed(1)}%</p>
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* HUD Reporting */}
         <TabsContent value="hud" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>HUD Compliance Report</CardTitle>
-              <CardDescription>Ready-to-submit documentation</CardDescription>
+              <CardDescription>Ready-to-submit Section 3 compliance documentation</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
@@ -565,9 +607,7 @@ export function ComprehensiveReporting() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Required Minimum (25%)</span>
-                      <span className="font-medium">
-                        {(metrics.totalLaborHours * 0.25).toLocaleString()} hours
-                      </span>
+                      <span className="font-medium">{(metrics.totalLaborHours * 0.25).toLocaleString()} hours</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Actual Section 3 Hours</span>
@@ -578,21 +618,20 @@ export function ComprehensiveReporting() {
                     <div className="flex justify-between text-sm">
                       <span>Compliance Status</span>
                       <span
-                        className={`font-medium ${
-                          metrics.complianceRate >= 25 ? "text-green-600" : "text-red-600"
-                        }`}
+                        className={`font-medium ${metrics.complianceRate >= 25 ? "text-green-600" : "text-red-600"}`}
                       >
                         {metrics.complianceRate >= 25 ? "COMPLIANT" : "NON-COMPLIANT"}
                       </span>
                     </div>
                   </div>
                 </div>
+
                 <div className="space-y-4">
                   <h4 className="font-medium">Reporting Period Summary</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Reporting Period</span>
-                      <span className="font-medium">January – December 2024</span>
+                      <span className="font-medium">January - December 2024</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Total Projects</span>
@@ -605,6 +644,7 @@ export function ComprehensiveReporting() {
                   </div>
                 </div>
               </div>
+
               <div className="flex gap-2">
                 <Button>
                   <Download className="h-4 w-4 mr-2" />

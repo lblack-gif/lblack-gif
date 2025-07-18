@@ -53,11 +53,14 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      // ✅ No "components" override anymore — default buttons used
+      components={{
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+      }}
       {...props}
     />
   )
 }
-
 Calendar.displayName = "Calendar"
+
 export { Calendar }

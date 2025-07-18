@@ -1,37 +1,9 @@
-// app/api/setup/route.ts
-import { NextRequest, NextResponse } from "next/server"
-
-interface SetupStatus {
-  timestamp: string
-  environment: string
-  services: {
-    supabase: {
-      configured: boolean
-      url: string
-      anonKey: string
-      serviceKey: string
-    }
-    ai: {
-      configured: boolean
-      openai: string
-    }
-    security: {
-      jwtSecret: string
-      encryptionKey: string
-    }
-    email: {
-      configured: boolean
-      host: string
-      user: string
-    }
-  }
-  recommendations: string[]
-}
+import { NextResponse } from "next/server"
 
 export async function GET() {
-  const setupStatus: SetupStatus = {
+  const setupStatus = {
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV ?? "development",
+    environment: process.env.NODE_ENV || "development",
     services: {
       supabase: {
         configured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
@@ -53,23 +25,23 @@ export async function GET() {
         user: process.env.SMTP_USER ? "✓ Set" : "✗ Missing",
       },
     },
-    // ← now typed as string[] so .push() works below
     recommendations: [],
   }
 
-  // Add any recommendations for missing config:
+  // Add recommendations based on missing configuration
   if (!setupStatus.services.supabase.configured) {
-    setupStatus.recommendations.push(
-      "Configure Supabase environment variables for database functionality"
-    )
+    setupStatus.recommendations.push("Configure Supabase environment variables for database functionality")
   }
+
   if (!setupStatus.services.ai.configured) {
     setupStatus.recommendations.push("Add OpenAI API key for AI-powered features")
   }
-  if (!process.env.JWT_SECRET) {
+
+  if (!setupStatus.services.security.jwtSecret) {
     setupStatus.recommendations.push("Set JWT_SECRET for secure authentication")
   }
-  if (!process.env.ENCRYPTION_KEY) {
+
+  if (!setupStatus.services.security.encryptionKey) {
     setupStatus.recommendations.push("Set ENCRYPTION_KEY for data encryption")
   }
 
@@ -77,46 +49,58 @@ export async function GET() {
 }
 
 export async function POST() {
-  const { randomBytes } = await import("crypto")
-  const jwtSecret = randomBytes(32).toString("hex")
-  const encryptionKey = randomBytes(32).toString("hex")
+  try {
+    // Generate secure random keys for development
+    const crypto = require("crypto")
 
-  const template = [
-    "# Generated Environment Variables for Development",
-    "# Copy these to your .env.local file",
-    "",
-    "# Security Keys (Generated)",
-    `JWT_SECRET=${jwtSecret}`,
-    `ENCRYPTION_KEY=${encryptionKey}`,
-    "",
-    "# Database Configuration (Supabase)",
-    "NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key",
-    "",
-    "# AI Configuration",
-    "OPENAI_API_KEY=your_openai_api_key",
-    "",
-    "# Email Configuration (Optional)",
-    "SMTP_HOST=smtp.gmail.com",
-    "SMTP_PORT=587",
-    "SMTP_USER=your_email@gmail.com",
-    "SMTP_PASSWORD=your_app_password",
-    "FROM_EMAIL=noreply@yourcompany.com",
-    "",
-    "# Application Settings",
-    "NEXT_PUBLIC_BASE_URL=http://localhost:3000",
-    "NODE_ENV=development",
-  ].join("\n")
+    const jwtSecret = crypto.randomBytes(32).toString("hex")
+    const encryptionKey = crypto.randomBytes(32).toString("hex")
 
-  return NextResponse.json({
-    success: true,
-    template,
-    instructions: [
-      "1. Copy the generated template to your .env.local file",
-      "2. Replace placeholder values with your actual credentials",
-      "3. Restart your development server",
-      "4. Visit /api/setup to verify configuration",
-    ],
-  })
+    const envTemplate = `# Generated Environment Variables for Development
+# Copy these to your .env.local file
+
+# Security Keys (Generated)
+JWT_SECRET=${jwtSecret}
+ENCRYPTION_KEY=${encryptionKey}
+
+# Database Configuration (Supabase)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# AI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# Email Configuration (Optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+FROM_EMAIL=noreply@yourcompany.com
+
+# Application Settings
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NODE_ENV=development
+`
+
+    return NextResponse.json({
+      success: true,
+      message: "Environment template generated",
+      template: envTemplate,
+      instructions: [
+        "1. Copy the generated template to your .env.local file",
+        "2. Replace placeholder values with your actual credentials",
+        "3. Restart your development server",
+        "4. Visit /api/setup to verify configuration",
+      ],
+    })
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate environment template",
+      },
+      { status: 500 },
+    )
+  }
 }

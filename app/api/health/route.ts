@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { supabase, isSupabaseConfigured } from "@/lib/supabase"
-import { config, validateConfig } from "@/lib/config"
+import { supabase } from "@/lib/supabase"
+import { config, validateConfig, getConfigStatus } from "@/lib/config"
 
 interface HealthCheck {
-  status: "healthy" | "degraded" | "unhealthy"
+  status: "healthy" | "degraded" | "unhealthy" | "error"
   timestamp: string
   version: string
   environment: string
@@ -12,20 +12,24 @@ interface HealthCheck {
     ai: ServiceHealth
     email: ServiceHealth
     storage: ServiceHealth
+    security: {
+      jwtSecret: boolean
+      encryptionKey: boolean
+    }
   }
-  metrics: {
-    responseTime: number
-    memoryUsage: number
-    activeConnections: number
-  }
-  configuration: {
+  isDemoMode: boolean
+  configuration?: {
     isValid: boolean
     warnings: string[]
+    errors?: string[]
   }
 }
 
 interface ServiceHealth {
-  status: "healthy" | "degraded" | "unhealthy" | "not_configured"
+  status: "healthy" | "degraded" | "unhealthy" | "not_configured" | "connected" | "demo_mode" | "configured"
+  configured?: boolean
+  hasValidUrl?: boolean
+  hasKey?: boolean
   responseTime?: number
   lastCheck: string
   error?: string
@@ -38,23 +42,30 @@ export async function GET() {
   try {
     // Validate configuration
     const configValidation = validateConfig()
+    const configStatus = getConfigStatus()
 
     // Check database connectivity
-    const databaseHealth = await checkDatabase()
+    const databaseHealth = await checkDatabase(configStatus)
 
     // Check AI service
-    const aiHealth = await checkAIService()
+    const aiHealth = await checkAIService(configStatus)
 
     // Check email service
-    const emailHealth = await checkEmailService()
+    const emailHealth = await checkEmailService(configStatus)
 
     // Check storage service
-    const storageHealth = await checkStorageService()
+    const storageHealth = await checkStorageService(configStatus)
 
     const responseTime = Date.now() - startTime
 
     // Determine overall system status
-    const services = { database: databaseHealth, ai: aiHealth, email: emailHealth, storage: storageHealth }
+    const services = {
+      database: databaseHealth,
+      ai: aiHealth,
+      email: emailHealth,
+      storage: storageHealth,
+      security: configStatus.security,
+    }
     const overallStatus = determineOverallStatus(services)
 
     const healthCheck: HealthCheck = {
@@ -63,11 +74,7 @@ export async function GET() {
       version: config.app.version,
       environment: config.app.environment,
       services,
-      metrics: {
-        responseTime,
-        memoryUsage: getMemoryUsage(),
-        activeConnections: await getActiveConnections(),
-      },
+      isDemoMode: configStatus.isDemoMode,
       configuration: configValidation,
     }
 
@@ -80,25 +87,28 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        status: "unhealthy",
+        status: "error",
         timestamp: new Date().toISOString(),
         version: config.app.version,
         environment: config.app.environment,
         error: error instanceof Error ? error.message : "Unknown error",
         uptime: process.uptime(),
       },
-      { status: 503 },
+      { status: 500 },
     )
   }
 }
 
-async function checkDatabase(): Promise<ServiceHealth> {
+async function checkDatabase(configStatus: any): Promise<ServiceHealth> {
   const startTime = Date.now()
 
   try {
-    if (!isSupabaseConfigured()) {
+    if (!configStatus.supabase.configured) {
       return {
-        status: "not_configured",
+        status: "demo_mode",
+        configured: false,
+        hasValidUrl: false,
+        hasKey: false,
         lastCheck: new Date().toISOString(),
         message: "Supabase not configured - running in demo mode",
       }
@@ -121,6 +131,9 @@ async function checkDatabase(): Promise<ServiceHealth> {
       status: responseTime < 1000 ? "healthy" : "degraded",
       responseTime,
       lastCheck: new Date().toISOString(),
+      configured: true,
+      hasValidUrl: configStatus.supabase.hasValidUrl,
+      hasKey: configStatus.supabase.hasKey,
       message: "Database connection successful",
     }
   } catch (error) {
@@ -132,13 +145,14 @@ async function checkDatabase(): Promise<ServiceHealth> {
   }
 }
 
-async function checkAIService(): Promise<ServiceHealth> {
+async function checkAIService(configStatus: any): Promise<ServiceHealth> {
   const startTime = Date.now()
 
   try {
-    if (!config.ai.openaiApiKey) {
+    if (!configStatus.openai.configured) {
       return {
         status: "not_configured",
+        configured: false,
         lastCheck: new Date().toISOString(),
         message: "OpenAI API key not configured",
       }
@@ -166,6 +180,7 @@ async function checkAIService(): Promise<ServiceHealth> {
       status: responseTime < 2000 ? "healthy" : "degraded",
       responseTime,
       lastCheck: new Date().toISOString(),
+      configured: true,
       message: "AI service accessible",
     }
   } catch (error) {
@@ -177,21 +192,25 @@ async function checkAIService(): Promise<ServiceHealth> {
   }
 }
 
-async function checkEmailService(): Promise<ServiceHealth> {
+async function checkEmailService(configStatus: any): Promise<ServiceHealth> {
   return {
-    status: config.email.smtpHost ? "healthy" : "not_configured",
+    status: configStatus.email.smtpHost ? "healthy" : "not_configured",
     lastCheck: new Date().toISOString(),
-    message: config.email.smtpHost ? "Email service configured" : "Email service not configured",
+    configured: configStatus.email.smtpHost ? true : false,
+    message: configStatus.email.smtpHost ? "Email service configured" : "Email service not configured",
   }
 }
 
-async function checkStorageService(): Promise<ServiceHealth> {
+async function checkStorageService(configStatus: any): Promise<ServiceHealth> {
   const startTime = Date.now()
 
   try {
-    if (!isSupabaseConfigured()) {
+    if (!configStatus.supabase.configured) {
       return {
-        status: "not_configured",
+        status: "demo_mode",
+        configured: false,
+        hasValidUrl: false,
+        hasKey: false,
         lastCheck: new Date().toISOString(),
         message: "Storage not configured - Supabase required",
       }
@@ -214,6 +233,9 @@ async function checkStorageService(): Promise<ServiceHealth> {
       status: responseTime < 1000 ? "healthy" : "degraded",
       responseTime,
       lastCheck: new Date().toISOString(),
+      configured: true,
+      hasValidUrl: configStatus.supabase.hasValidUrl,
+      hasKey: configStatus.supabase.hasKey,
       message: "Storage service accessible",
     }
   } catch (error) {
@@ -225,31 +247,18 @@ async function checkStorageService(): Promise<ServiceHealth> {
   }
 }
 
-function determineOverallStatus(services: Record<string, ServiceHealth>): "healthy" | "degraded" | "unhealthy" {
+function determineOverallStatus(
+  services: Record<string, ServiceHealth>,
+): "healthy" | "degraded" | "unhealthy" | "error" {
   const statuses = Object.values(services).map((service) => service.status)
 
   if (statuses.includes("unhealthy")) {
     return "unhealthy"
   }
 
-  if (statuses.includes("degraded") || statuses.includes("not_configured")) {
+  if (statuses.includes("degraded") || statuses.includes("not_configured") || statuses.includes("demo_mode")) {
     return "degraded"
   }
 
   return "healthy"
-}
-
-function getMemoryUsage(): number {
-  const usage = process.memoryUsage()
-  return Math.round((usage.heapUsed / usage.heapTotal) * 100)
-}
-
-async function getActiveConnections(): Promise<number> {
-  try {
-    // In production, you would query actual connection pool metrics
-    // For demo, return a simulated value
-    return Math.floor(Math.random() * 50) + 20
-  } catch (error) {
-    return 0
-  }
 }
