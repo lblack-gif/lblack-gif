@@ -9,40 +9,6 @@ import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
-// ✅ Fixed Custom Navigation (per new API)
-function CustomNavigation({
-  nextMonth,
-  previousMonth,
-  goToMonth,
-}: {
-  nextMonth?: Date
-  previousMonth?: Date
-  goToMonth: (date: Date) => void
-}) {
-  return (
-    <div className="flex justify-between items-center px-2">
-      {previousMonth && (
-        <button
-          type="button"
-          onClick={() => goToMonth(previousMonth)}
-          className="p-1 rounded hover:bg-slate-100"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-      )}
-      {nextMonth && (
-        <button
-          type="button"
-          onClick={() => goToMonth(nextMonth)}
-          className="p-1 rounded hover:bg-slate-100"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  )
-}
-
 function Calendar({
   className,
   classNames,
@@ -87,10 +53,7 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        // 👇 This is now safe: only use built-in types
-        Navigation: CustomNavigation,
-      }}
+      // ✅ No "components" override anymore — default buttons used
       {...props}
     />
   )
