@@ -2,16 +2,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 
-// Pull your secret key and API version from env
-const stripeSecret = process.env.STRIPE_SECRET_KEY!
-const stripeApiVersion = process.env.NEXT_PUBLIC_STRIPE_API_VERSION!
+const stripeSecret = process.env.STRIPE_SECRET_KEY
+const stripeApiVersion = process.env.NEXT_PUBLIC_STRIPE_API_VERSION
 
-// Cast apiVersion to `any` so TS accepts the string at runtime
-const stripe = new Stripe(stripeSecret, {
-  apiVersion: stripeApiVersion as any,
-})
+// ✅ Skip logic if required Stripe config is missing
+if (!stripeSecret || !stripeApiVersion) {
+  console.warn("⚠️ STRIPE_SECRET_KEY or STRIPE_API_VERSION is missing. Skipping Stripe callback route.")
+}
 
 export async function GET(request: NextRequest) {
+  // ✅ Prevent build crash by checking env again inside the handler
+  if (!stripeSecret || !stripeApiVersion) {
+    return NextResponse.json(
+      { error: "Stripe not configured. Missing env vars." },
+      { status: 500 }
+    )
+  }
+
+  const stripe = new Stripe(stripeSecret, {
+    apiVersion: stripeApiVersion as any,
+  })
+
   const { searchParams } = new URL(request.url)
   const code = searchParams.get("code")
   const state = searchParams.get("state")
@@ -20,14 +31,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing code" }, { status: 400 })
   }
 
-  // Exchange the Connect authorization code for tokens
   const resp = await stripe.oauth.token({
     grant_type: "authorization_code",
     code,
   })
 
-  // TODO: persist resp.stripe_user_id, resp.access_token, etc. under `state` in your database
+  // TODO: persist resp.stripe_user_id, resp.access_token, etc. using `state`
 
-  // Redirect back into your app (e.g. a “success” page)
   return NextResponse.redirect(new URL("/connect/success", request.url))
 }
