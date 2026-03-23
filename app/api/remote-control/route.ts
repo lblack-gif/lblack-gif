@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server"
 import { moduleConfig } from "@/lib/modules"
+import {
+  getAuthenticatedUser,
+  isAdmin,
+  unauthorizedResponse,
+  forbiddenResponse,
+  checkRateLimit,
+  rateLimitResponse,
+} from "@/lib/auth"
 
 interface RemoteCommand {
   action: string
@@ -16,14 +24,24 @@ interface CommandResult {
   timestamp: string
 }
 
-// System state tracked in-memory (would be persisted in production)
-const systemState = {
-  maintenanceMode: false,
-  lastRestart: new Date().toISOString(),
-  activeCommands: [] as CommandResult[],
-}
+// Actions allowed right now. Everything else is blocked.
+const ALLOWED_ACTIONS = new Set(["ping", "status"])
 
-export async function GET() {
+// Disabled actions — kept here so it's clear what will be re-enabled later.
+// "restart-services", "clear-cache", "maintenance-mode",
+// "toggle-module", "sync-hud", "backup", "generate-report"
+
+// In-memory command history (would be persisted in production)
+const commandHistory: CommandResult[] = []
+
+// ---------------------------------------------------------------------------
+// GET /api/remote-control — admin-only system status
+// ---------------------------------------------------------------------------
+export async function GET(request: Request) {
+  const user = await getAuthenticatedUser(request)
+  if (!user) return unauthorizedResponse()
+  if (!isAdmin(user.role)) return forbiddenResponse()
+
   const modules = Object.entries(moduleConfig).map(([key, value]) => ({
     id: key,
     enabled: value.enabled,
@@ -32,10 +50,8 @@ export async function GET() {
 
   return NextResponse.json({
     status: "online",
-    maintenanceMode: systemState.maintenanceMode,
-    lastRestart: systemState.lastRestart,
     modules,
-    recentCommands: systemState.activeCommands.slice(-20),
+    recentCommands: commandHistory.slice(-20),
     systemInfo: {
       uptime: process.uptime(),
       nodeVersion: process.version,
@@ -43,45 +59,69 @@ export async function GET() {
       memoryUsage: process.memoryUsage(),
       environment: process.env.NODE_ENV || "development",
     },
+    allowedActions: Array.from(ALLOWED_ACTIONS),
     timestamp: new Date().toISOString(),
   })
 }
 
+// ---------------------------------------------------------------------------
+// POST /api/remote-control — execute a command (admin-only, rate-limited)
+// ---------------------------------------------------------------------------
 export async function POST(request: Request) {
+  // 1. Auth check
+  const user = await getAuthenticatedUser(request)
+  if (!user) return unauthorizedResponse()
+  if (!isAdmin(user.role)) return forbiddenResponse()
+
+  // 2. Rate limit: 30 requests per minute per user
+  const rl = checkRateLimit(`rc:${user.id}`, 30, 60_000)
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
+  // 3. Parse body
+  let body: RemoteCommand
   try {
-    const body: RemoteCommand = await request.json()
-    const { action, target, params } = body
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
 
-    if (!action) {
-      return NextResponse.json({ error: "Action is required" }, { status: 400 })
-    }
+  const { action } = body
+  if (!action) {
+    return NextResponse.json({ error: "Action is required" }, { status: 400 })
+  }
 
-    const result = executeCommand(action, target, params)
-
-    systemState.activeCommands.push(result)
-    if (systemState.activeCommands.length > 100) {
-      systemState.activeCommands = systemState.activeCommands.slice(-100)
-    }
-
-    return NextResponse.json(result, {
-      status: result.success ? 200 : 400,
-    })
-  } catch (error) {
+  // 4. Block disabled actions
+  if (!ALLOWED_ACTIONS.has(action)) {
     return NextResponse.json(
       {
-        error: "Invalid request body",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: `Action "${action}" is currently disabled`,
+        allowedActions: Array.from(ALLOWED_ACTIONS),
       },
-      { status: 400 },
+      { status: 403 },
     )
   }
+
+  // 5. Execute
+  const result = executeCommand(action)
+
+  // 6. Log
+  commandHistory.push(result)
+  if (commandHistory.length > 100) {
+    commandHistory.splice(0, commandHistory.length - 100)
+  }
+
+  return NextResponse.json(result, {
+    status: result.success ? 200 : 400,
+    headers: {
+      "X-RateLimit-Remaining": String(rl.remaining),
+    },
+  })
 }
 
-function executeCommand(
-  action: string,
-  target?: string,
-  params?: Record<string, unknown>,
-): CommandResult {
+// ---------------------------------------------------------------------------
+// Command execution — only safe, read-only actions
+// ---------------------------------------------------------------------------
+function executeCommand(action: string): CommandResult {
   const timestamp = new Date().toISOString()
 
   switch (action) {
@@ -99,96 +139,9 @@ function executeCommand(
         action,
         message: "System status retrieved",
         data: {
-          maintenanceMode: systemState.maintenanceMode,
           uptime: process.uptime(),
           memoryUsage: process.memoryUsage(),
         },
-        timestamp,
-      }
-
-    case "toggle-module":
-      if (!target) {
-        return {
-          success: false,
-          action,
-          message: "Module target is required",
-          timestamp,
-        }
-      }
-      if (!(target in moduleConfig)) {
-        return {
-          success: false,
-          action,
-          target,
-          message: `Unknown module: ${target}`,
-          timestamp,
-        }
-      }
-      ;(moduleConfig as Record<string, { enabled: boolean; order: number }>)[target].enabled =
-        !(moduleConfig as Record<string, { enabled: boolean; order: number }>)[target].enabled
-      return {
-        success: true,
-        action,
-        target,
-        message: `Module ${target} ${(moduleConfig as Record<string, { enabled: boolean; order: number }>)[target].enabled ? "enabled" : "disabled"}`,
-        data: { enabled: (moduleConfig as Record<string, { enabled: boolean; order: number }>)[target].enabled },
-        timestamp,
-      }
-
-    case "maintenance-mode":
-      const enable = params?.enable !== undefined ? Boolean(params.enable) : !systemState.maintenanceMode
-      systemState.maintenanceMode = enable
-      return {
-        success: true,
-        action,
-        message: `Maintenance mode ${enable ? "enabled" : "disabled"}`,
-        data: { maintenanceMode: enable },
-        timestamp,
-      }
-
-    case "restart-services":
-      systemState.lastRestart = timestamp
-      return {
-        success: true,
-        action,
-        message: "Services restart initiated",
-        data: { restartTime: timestamp },
-        timestamp,
-      }
-
-    case "clear-cache":
-      return {
-        success: true,
-        action,
-        message: "Cache cleared successfully",
-        timestamp,
-      }
-
-    case "generate-report":
-      return {
-        success: true,
-        action,
-        target: target || "compliance",
-        message: `Report generation initiated for: ${target || "compliance"}`,
-        data: { reportType: target || "compliance", estimatedCompletion: "2 minutes" },
-        timestamp,
-      }
-
-    case "sync-hud":
-      return {
-        success: true,
-        action,
-        message: "HUD data synchronization initiated",
-        data: { syncType: "full", estimatedDuration: "5 minutes" },
-        timestamp,
-      }
-
-    case "backup":
-      return {
-        success: true,
-        action,
-        message: "System backup initiated",
-        data: { backupType: params?.type || "full", timestamp },
         timestamp,
       }
 

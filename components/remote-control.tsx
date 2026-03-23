@@ -4,16 +4,11 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Radio,
-  Power,
   RefreshCw,
-  Trash2,
-  FileText,
-  Database,
   Server,
   Activity,
   CheckCircle,
@@ -21,16 +16,15 @@ import {
   Clock,
   Zap,
   Shield,
-  Settings,
   Terminal,
+  Lock,
 } from "lucide-react"
 
 interface SystemStatus {
   status: string
-  maintenanceMode: boolean
-  lastRestart: string
   modules: Array<{ id: string; enabled: boolean; order: number }>
   recentCommands: CommandResult[]
+  allowedActions: string[]
   systemInfo: {
     uptime: number
     nodeVersion: string
@@ -55,20 +49,10 @@ interface CommandResult {
   timestamp: string
 }
 
+// Only safe, read-only actions are shown
 const quickActions = [
   { action: "ping", label: "Ping", icon: Activity, description: "Test system connectivity" },
   { action: "status", label: "Status", icon: Server, description: "Get system status" },
-  { action: "clear-cache", label: "Clear Cache", icon: Trash2, description: "Clear all caches" },
-  { action: "restart-services", label: "Restart", icon: RefreshCw, description: "Restart services" },
-  { action: "sync-hud", label: "Sync HUD", icon: Database, description: "Sync HUD data" },
-  { action: "backup", label: "Backup", icon: Shield, description: "Create system backup" },
-]
-
-const reportTypes = [
-  { target: "compliance", label: "Compliance Report" },
-  { target: "labor-hours", label: "Labor Hours Report" },
-  { target: "contractor-performance", label: "Contractor Performance" },
-  { target: "audit-summary", label: "Audit Summary" },
 ]
 
 function formatUptime(seconds: number): string {
@@ -91,18 +75,47 @@ function formatModuleName(id: string): string {
     .trim()
 }
 
+/**
+ * Get the Supabase access token from the current browser session.
+ * Returns empty string if not logged in.
+ */
+async function getAccessToken(): Promise<string> {
+  try {
+    const { supabase } = await import("@/lib/supabase")
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token || ""
+  } catch {
+    return ""
+  }
+}
+
 export function RemoteControl() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null)
   const [commandLog, setCommandLog] = useState<CommandResult[]>([])
   const [loading, setLoading] = useState(true)
   const [executing, setExecuting] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/remote-control")
+      const token = await getAccessToken()
+      const response = await fetch("/api/remote-control", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.status === 401) {
+        setAuthError("You must be logged in to access Remote Control.")
+        return
+      }
+      if (response.status === 403) {
+        setAuthError("Admin access required. Only HUD Admin users can access Remote Control.")
+        return
+      }
+
       if (response.ok) {
         const data: SystemStatus = await response.json()
         setSystemStatus(data)
+        setAuthError(null)
       }
     } catch (error) {
       console.error("Failed to fetch system status:", error)
@@ -117,46 +130,55 @@ export function RemoteControl() {
     return () => clearInterval(interval)
   }, [fetchStatus])
 
-  const executeCommand = async (
-    action: string,
-    target?: string,
-    params?: Record<string, unknown>,
-  ) => {
+  const executeCommand = async (action: string) => {
     setExecuting(action)
     try {
+      const token = await getAccessToken()
       const response = await fetch("/api/remote-control", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, target, params }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action }),
       })
+
+      if (response.status === 429) {
+        setCommandLog((prev) =>
+          [
+            {
+              success: false,
+              action,
+              message: "Rate limit exceeded. Wait a moment and try again.",
+              timestamp: new Date().toISOString(),
+            },
+            ...prev,
+          ].slice(0, 50),
+        )
+        return
+      }
+
       const result: CommandResult = await response.json()
       setCommandLog((prev) => [result, ...prev].slice(0, 50))
       await fetchStatus()
     } catch (error) {
-      setCommandLog((prev) => [
-        {
-          success: false,
-          action,
-          message: `Network error: ${error instanceof Error ? error.message : "Unknown"}`,
-          timestamp: new Date().toISOString(),
-        },
-        ...prev,
-      ].slice(0, 50))
+      setCommandLog((prev) =>
+        [
+          {
+            success: false,
+            action,
+            message: `Network error: ${error instanceof Error ? error.message : "Unknown"}`,
+            timestamp: new Date().toISOString(),
+          },
+          ...prev,
+        ].slice(0, 50),
+      )
     } finally {
       setExecuting(null)
     }
   }
 
-  const toggleModule = async (moduleId: string) => {
-    await executeCommand("toggle-module", moduleId)
-  }
-
-  const toggleMaintenance = async () => {
-    await executeCommand("maintenance-mode", undefined, {
-      enable: !systemStatus?.maintenanceMode,
-    })
-  }
-
+  // ------- Auth gate -------
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -166,6 +188,28 @@ export function RemoteControl() {
     )
   }
 
+  if (authError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
+                <Lock className="h-7 w-7 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800">Access Denied</h3>
+              <p className="text-sm text-slate-600">{authError}</p>
+              <Button variant="outline" size="sm" onClick={fetchStatus}>
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ------- Main UI (admin only) -------
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -176,7 +220,7 @@ export function RemoteControl() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Remote Control</h2>
-            <p className="text-sm text-slate-500">Centralized system management interface</p>
+            <p className="text-sm text-slate-500">Admin-only system management interface</p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
@@ -190,11 +234,10 @@ export function RemoteControl() {
           >
             {systemStatus?.status === "online" ? "Online" : "Offline"}
           </Badge>
-          {systemStatus?.maintenanceMode && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-              Maintenance Mode
-            </Badge>
-          )}
+          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+            <Shield className="h-3 w-3 mr-1" />
+            HUD Admin
+          </Badge>
           <Button variant="outline" size="sm" onClick={fetchStatus}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -202,26 +245,24 @@ export function RemoteControl() {
         </div>
       </div>
 
-      {systemStatus?.maintenanceMode && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <Shield className="h-4 w-4" />
-          <AlertDescription>
-            System is in maintenance mode. Some features may be unavailable to end users.
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Shield className="h-4 w-4" />
+        <AlertDescription>
+          Destructive actions (restart, cache clear, module toggle, maintenance mode, HUD sync,
+          backup, report generation) are disabled in this release. Only ping and status are active.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="commands" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="commands">Quick Actions</TabsTrigger>
-          <TabsTrigger value="modules">Module Control</TabsTrigger>
           <TabsTrigger value="system">System Info</TabsTrigger>
           <TabsTrigger value="log">Command Log</TabsTrigger>
         </TabsList>
 
         {/* Quick Actions Tab */}
         <TabsContent value="commands" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {quickActions.map((qa) => (
               <Card key={qa.action} className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-6">
@@ -252,87 +293,20 @@ export function RemoteControl() {
             ))}
           </div>
 
-          {/* Maintenance Mode Toggle */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
-                <span>Maintenance Mode</span>
-              </CardTitle>
-              <CardDescription>
-                Enable maintenance mode to restrict access during updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600">
-                    Status:{" "}
-                    <span
-                      className={
-                        systemStatus?.maintenanceMode
-                          ? "text-amber-600 font-medium"
-                          : "text-green-600 font-medium"
-                      }
+          {/* Module list — read-only view */}
+          {systemStatus?.modules && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Module Status (read-only)</CardTitle>
+                <CardDescription>Module toggling is disabled in this release</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {systemStatus.modules.map((mod) => (
+                    <div
+                      key={mod.id}
+                      className="flex items-center space-x-2 p-2 rounded border border-slate-100"
                     >
-                      {systemStatus?.maintenanceMode ? "Enabled" : "Disabled"}
-                    </span>
-                  </p>
-                </div>
-                <Switch
-                  checked={systemStatus?.maintenanceMode || false}
-                  onCheckedChange={toggleMaintenance}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Report Generation */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>Generate Reports</span>
-              </CardTitle>
-              <CardDescription>Trigger on-demand report generation</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {reportTypes.map((rt) => (
-                  <Button
-                    key={rt.target}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => executeCommand("generate-report", rt.target)}
-                    disabled={executing === "generate-report"}
-                    className="text-xs"
-                  >
-                    {rt.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Module Control Tab */}
-        <TabsContent value="modules" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Power className="h-5 w-5" />
-                <span>Module Management</span>
-              </CardTitle>
-              <CardDescription>Enable or disable system modules remotely</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {systemStatus?.modules.map((mod) => (
-                  <div
-                    key={mod.id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
                       <Badge
                         variant="outline"
                         className={
@@ -343,19 +317,15 @@ export function RemoteControl() {
                       >
                         {mod.enabled ? "On" : "Off"}
                       </Badge>
-                      <span className="font-medium text-slate-700">
+                      <span className="text-xs text-slate-600 truncate">
                         {formatModuleName(mod.id)}
                       </span>
                     </div>
-                    <Switch
-                      checked={mod.enabled}
-                      onCheckedChange={() => toggleModule(mod.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* System Info Tab */}
@@ -390,12 +360,6 @@ export function RemoteControl() {
                     <Badge variant="outline" className="text-xs">
                       {systemStatus.systemInfo.environment}
                     </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-slate-500">Last Restart</span>
-                    <span className="text-sm font-medium">
-                      {new Date(systemStatus.lastRestart).toLocaleString()}
-                    </span>
                   </div>
                 </CardContent>
               </Card>
