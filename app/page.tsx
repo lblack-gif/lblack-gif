@@ -28,6 +28,7 @@ import {
   BarChart3,
   FileBarChart,
   Zap,
+  Radio,
 } from "lucide-react"
 import { AutomatedReporting } from "@/components/automated-reporting"
 import { PayrollIntegration } from "@/components/payroll-integration"
@@ -43,6 +44,7 @@ import { AIIntegration } from "@/components/ai-integration"
 import { WorkerManagement } from "@/components/worker-management"
 import { ComprehensiveReporting } from "@/components/comprehensive-reporting"
 import { PerformanceDashboard } from "@/components/performance-dashboard"
+import { RemoteControl } from "@/components/remote-control"
 import { getConfigStatus } from "@/lib/config"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle, Info } from "lucide-react"
@@ -68,6 +70,7 @@ type ActiveView =
   | "audit-accountability"
   | "mobile-interface"
   | "training-support"
+  | "remote-control"
 
 // Organized navigation with logical grouping and enhanced visual hierarchy
 const navigation = [
@@ -222,6 +225,13 @@ const navigation = [
     category: "admin",
     description: "Training resources and support",
   },
+  {
+    id: "remote-control",
+    label: "Remote Control",
+    icon: Radio,
+    category: "admin",
+    description: "Remote system management interface",
+  },
 ]
 
 // Color schemes for different categories
@@ -292,6 +302,8 @@ export default function HomePage() {
         return <WorkerManagement />
       case "comprehensive-reports":
         return <ComprehensiveReporting />
+      case "remote-control":
+        return <RemoteControl />
       case "system-monitoring":
         return <SystemMonitoring />
       default:
