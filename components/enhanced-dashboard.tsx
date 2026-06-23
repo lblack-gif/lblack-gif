@@ -34,15 +34,25 @@ import {
   Building,
   ClipboardCheck,
   UserCog,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 
 interface EnhancedDashboardProps {
   onNavigate?: (view: string) => void
 }
 
+interface DashboardFilters {
+  section3?: "low"
+  targeted?: "low"
+  compliance?: "at_risk"
+}
+
 export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview")
-  const [projectFilter, setProjectFilter] = useState<string | null>(null)
+  const [filters, setFilters] = useState<DashboardFilters>({})
+  const [selectedProject, setSelectedProject] = useState<number | null>(null)
   const [complianceData, setComplianceData] = useState({
     totalHours: 12450,
     section3Hours: 3890,
@@ -205,24 +215,37 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
     },
   ])
 
+  const hasActiveFilters = Object.keys(filters).length > 0
+
   const filteredProjects = projectData.filter((p) => {
-    if (!projectFilter) return true
-    if (projectFilter === "below-section3") return p.section3 < 25
-    if (projectFilter === "below-targeted") return p.targeted < 15
-    if (projectFilter === "at-risk") return p.status === "at-risk" || p.status === "non-compliant"
+    if (!hasActiveFilters) return true
+    if (filters.section3 === "low" && p.section3 >= 25) return false
+    if (filters.targeted === "low" && p.targeted >= 15) return false
+    if (filters.compliance === "at_risk" && p.status !== "at-risk" && p.status !== "non-compliant") return false
     return true
   })
 
-  const filterLabels: Record<string, string> = {
-    "below-section3": "Below 25% Section 3",
-    "below-targeted": "Below 15% Targeted",
-    "at-risk": "At-Risk / Non-Compliant",
+  const toggleFilter = (key: keyof DashboardFilters, value: DashboardFilters[keyof DashboardFilters]) => {
+    setSelectedProject(null)
+    setFilters((prev) => {
+      if (prev[key] === value) {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      }
+      return { ...prev, [key]: value }
+    })
   }
 
-  const applyFilter = (filter: string | null) => {
-    setProjectFilter(filter)
-    setActiveTab("projects")
+  const clearFilters = () => {
+    setFilters({})
+    setSelectedProject(null)
   }
+
+  const activeFilterLabels: string[] = []
+  if (filters.section3 === "low") activeFilterLabels.push("Below 25% Section 3")
+  if (filters.targeted === "low") activeFilterLabels.push("Below 15% Targeted")
+  if (filters.compliance === "at_risk") activeFilterLabels.push("At-Risk / Non-Compliant")
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -291,10 +314,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Labor Hours — switches to projects tab, clears filter (show full breakdown) */}
+        {/* Total Labor Hours — clears all filters (resets to full view) */}
         <Card
-          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${activeTab === "projects" && !projectFilter ? "ring-2 ring-blue-300" : ""}`}
-          onClick={() => { setProjectFilter(null); setActiveTab("projects") }}
+          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${!hasActiveFilters ? "ring-2 ring-blue-300" : ""}`}
+          onClick={clearFilters}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
@@ -306,10 +329,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Section 3 Hours — filters projects below 25% S3 threshold */}
+        {/* Section 3 Hours — toggles filter: projects below 25% S3 threshold */}
         <Card
-          className={`border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "below-section3" ? "ring-2 ring-green-300" : ""}`}
-          onClick={() => applyFilter("below-section3")}
+          className={`border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.section3 === "low" ? "ring-2 ring-green-300" : ""}`}
+          onClick={() => toggleFilter("section3", "low")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
@@ -325,10 +348,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Targeted Section 3 Hours — filters projects below 15% targeted threshold */}
+        {/* Targeted Section 3 Hours — toggles filter: projects below 15% targeted threshold */}
         <Card
-          className={`border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "below-targeted" ? "ring-2 ring-teal-300" : ""}`}
-          onClick={() => applyFilter("below-targeted")}
+          className={`border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.targeted === "low" ? "ring-2 ring-teal-300" : ""}`}
+          onClick={() => toggleFilter("targeted", "low")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Targeted Section 3 Hours</CardTitle>
@@ -346,10 +369,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Compliance Status — filters to at-risk / non-compliant projects */}
+        {/* Compliance Status — toggles filter: at-risk / non-compliant projects */}
         <Card
-          className={`border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "at-risk" ? "ring-2 ring-purple-300" : ""}`}
-          onClick={() => applyFilter("at-risk")}
+          className={`border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.compliance === "at_risk" ? "ring-2 ring-purple-300" : ""}`}
+          onClick={() => toggleFilter("compliance", "at_risk")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
@@ -373,7 +396,32 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       </div>
 
       {/* Detailed Analytics */}
-      <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); if (tab !== "projects") setProjectFilter(null) }} className="space-y-4">
+      {/* Global filter indicator */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center space-x-2 flex-wrap gap-1">
+            <ClipboardCheck className="h-4 w-4 text-orange-600 flex-shrink-0" />
+            <span className="text-sm font-medium text-orange-800">Active filters:</span>
+            {activeFilterLabels.map((label) => (
+              <Badge key={label} variant="outline" className="text-xs bg-white">
+                {label}
+              </Badge>
+            ))}
+            <Badge variant="outline" className="text-xs">
+              {filteredProjects.length} of {projectData.length} projects
+            </Badge>
+          </div>
+          <button
+            className="text-xs text-orange-600 hover:text-orange-800 font-medium flex items-center space-x-1"
+            onClick={clearFilters}
+          >
+            <X className="h-3 w-3" />
+            <span>Clear all</span>
+          </button>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); setSelectedProject(null) }} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger
             value="overview"
@@ -460,7 +508,12 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                   {complianceAlerts.map((alert, index) => (
                     <div
                       key={index}
-                      className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+                      className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer"
+                      onClick={() => {
+                        if (alert.type === "warning") toggleFilter("section3", "low")
+                        else if (alert.type === "info") toggleFilter("compliance", "at_risk")
+                        else clearFilters()
+                      }}
                     >
                       {getAlertIcon(alert.type)}
                       <div className="flex-1 min-w-0">
@@ -528,26 +581,6 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-4">
-          {projectFilter && (
-            <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <ClipboardCheck className="h-4 w-4 text-orange-600" />
-                <span className="text-sm font-medium text-orange-800">
-                  Filtered: {filterLabels[projectFilter]}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {filteredProjects.length} of {projectData.length} projects
-                </Badge>
-              </div>
-              <button
-                className="text-xs text-orange-600 hover:text-orange-800 font-medium"
-                onClick={() => setProjectFilter(null)}
-              >
-                Clear filter
-              </button>
-            </div>
-          )}
-
           <Card className="hover:shadow-lg transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Project Compliance Status</CardTitle>
@@ -572,13 +605,13 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
               <CardDescription>
-                {projectFilter
-                  ? `Showing ${filteredProjects.length} projects matching filter`
-                  : "Detailed project information and contractor assignments"}
+                {hasActiveFilters
+                  ? `Showing ${filteredProjects.length} of ${projectData.length} projects`
+                  : "Click a project to inspect details"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {filteredProjects.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
                     <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
@@ -586,28 +619,81 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                     <p className="text-xs text-gray-500 mt-1">All projects meet the threshold for this metric</p>
                   </div>
                 ) : (
-                  filteredProjects.map((project, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
-                    >
-                      <div className="flex-1">
-                        <h3 className="font-medium">{project.name}</h3>
-                        <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="text-sm font-medium">Section 3: {project.section3}%</div>
-                          <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
+                  filteredProjects.map((project, index) => {
+                    const projectIndex = projectData.indexOf(project)
+                    const isExpanded = selectedProject === projectIndex
+                    return (
+                      <div key={index}>
+                        <div
+                          className={`flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer ${isExpanded ? "bg-orange-50 border-orange-300" : ""}`}
+                          onClick={() => setSelectedProject(isExpanded ? null : projectIndex)}
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            {isExpanded
+                              ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                            <div>
+                              <h3 className="font-medium">{project.name}</h3>
+                              <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="text-sm font-medium">Section 3: {project.section3}%</div>
+                              <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold">{project.total}</div>
+                              <div className="text-xs text-gray-600">Total Hours</div>
+                            </div>
+                            {getStatusBadge(project.status)}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold">{project.total}</div>
-                          <div className="text-xs text-gray-600">Total Hours</div>
-                        </div>
-                        {getStatusBadge(project.status)}
+
+                        {isExpanded && (
+                          <div className="ml-7 mr-2 mt-1 mb-3 p-4 border border-orange-200 rounded-lg bg-white space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                <div className="text-lg font-bold text-blue-600">{project.total}</div>
+                                <div className="text-xs text-gray-600">Total Hours</div>
+                              </div>
+                              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                <div className="text-lg font-bold text-green-600">{project.section3}%</div>
+                                <div className="text-xs text-gray-600">Section 3 Rate</div>
+                                <Progress value={project.section3} className="mt-1 h-1.5" />
+                              </div>
+                              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                <div className="text-lg font-bold text-teal-600">{project.targeted}%</div>
+                                <div className="text-xs text-gray-600">Targeted Rate</div>
+                                <Progress value={project.targeted} className="mt-1 h-1.5" />
+                              </div>
+                              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                <div className="text-lg font-bold">{getStatusBadge(project.status)}</div>
+                                <div className="text-xs text-gray-600 mt-1">Compliance Status</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm border-t pt-3">
+                              <div className="text-gray-600">
+                                <span className="font-medium">Contractor:</span> {project.contractor}
+                              </div>
+                              <div className="text-gray-600">
+                                <span className="font-medium">S3 gap:</span>{" "}
+                                {project.section3 >= 25
+                                  ? <span className="text-green-600">+{(project.section3 - 25).toFixed(0)}% above threshold</span>
+                                  : <span className="text-red-600">{(project.section3 - 25).toFixed(0)}% below threshold</span>}
+                              </div>
+                              <div className="text-gray-600">
+                                <span className="font-medium">Targeted gap:</span>{" "}
+                                {project.targeted >= 15
+                                  ? <span className="text-green-600">+{(project.targeted - 15).toFixed(0)}% above threshold</span>
+                                  : <span className="text-red-600">{(project.targeted - 15).toFixed(0)}% below threshold</span>}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </CardContent>
