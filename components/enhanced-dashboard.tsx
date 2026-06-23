@@ -36,7 +36,12 @@ import {
   UserCog,
 } from "lucide-react"
 
-export function EnhancedDashboard() {
+interface EnhancedDashboardProps {
+  onNavigate?: (view: string) => void
+}
+
+export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
+  const [activeTab, setActiveTab] = useState("overview")
   const [complianceData, setComplianceData] = useState({
     totalHours: 12450,
     section3Hours: 3890,
@@ -267,7 +272,10 @@ export function EnhancedDashboard() {
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Labor Hours */}
-        <Card className="border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        <Card
+          className="border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
+          onClick={() => setActiveTab("compliance-tracking")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
             <Clock className="h-4 w-4 text-blue-600" />
@@ -279,7 +287,10 @@ export function EnhancedDashboard() {
         </Card>
 
         {/* Section 3 Hours */}
-        <Card className="border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        <Card
+          className="border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
+          onClick={() => setActiveTab("workers")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
             <Users className="h-4 w-4 text-green-600" />
@@ -295,7 +306,10 @@ export function EnhancedDashboard() {
         </Card>
 
         {/* Targeted Section 3 Hours */}
-        <Card className="border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        <Card
+          className="border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
+          onClick={() => setActiveTab("workers")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Targeted Section 3 Hours</CardTitle>
             <Target className="h-4 w-4 text-teal-600" />
@@ -313,7 +327,10 @@ export function EnhancedDashboard() {
         </Card>
 
         {/* Compliance Status */}
-        <Card className="border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        <Card
+          className="border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
+          onClick={() => setActiveTab("compliance-tracking")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
             <Award className="h-4 w-4 text-purple-600" />
@@ -336,7 +353,7 @@ export function EnhancedDashboard() {
       </div>
 
       {/* Detailed Analytics */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger
             value="overview"
@@ -421,7 +438,15 @@ export function EnhancedDashboard() {
               <CardContent>
                 <div className="space-y-3">
                   {complianceAlerts.map((alert, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-start space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-orange-50 transition-colors duration-200"
+                      onClick={() => {
+                        if (alert.type === "warning") onNavigate?.("project-compliance")
+                        else if (alert.type === "info") onNavigate?.("comprehensive-reports")
+                        else onNavigate?.("contractor-performance")
+                      }}
+                    >
                       {getAlertIcon(alert.type)}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{alert.message}</p>
@@ -518,7 +543,8 @@ export function EnhancedDashboard() {
                 {projectData.map((project, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer"
+                    onClick={() => onNavigate?.("project-compliance")}
                   >
                     <div className="flex-1">
                       <h3 className="font-medium">{project.name}</h3>
@@ -824,25 +850,37 @@ export function EnhancedDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("workers")}
+            >
               <Users className="h-6 w-6 text-blue-600 mb-2" />
               <div className="font-medium">Register Worker</div>
               <div className="text-sm text-gray-600">Add new Section 3 worker</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("labor-hours")}
+            >
               <Clock className="h-6 w-6 text-green-600 mb-2" />
               <div className="font-medium">Log Hours</div>
               <div className="text-sm text-gray-600">Record labor hours</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("comprehensive-reports")}
+            >
               <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
               <div className="font-medium">Generate Report</div>
               <div className="text-sm text-gray-600">Create compliance report</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("workers")}
+            >
               <Target className="h-6 w-6 text-teal-600 mb-2" />
               <div className="font-medium">Verify Status</div>
               <div className="text-sm text-gray-600">Check targeted eligibility</div>
