@@ -198,6 +198,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       project: "Senior Housing Development",
       severity: "medium",
       daysOverdue: 5,
+      action: { filter: { section3: "low" as const } },
     },
     {
       type: "info",
@@ -205,6 +206,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       project: "All Projects",
       severity: "low",
       daysOverdue: 0,
+      action: { filter: { compliance: "at_risk" as const } },
     },
     {
       type: "success",
@@ -212,6 +214,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       project: "Affordable Housing Phase 1",
       severity: "low",
       daysOverdue: 0,
+      action: null,
     },
   ])
 
@@ -242,10 +245,18 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
     setSelectedProject(null)
   }
 
-  const activeFilterLabels: string[] = []
-  if (filters.section3 === "low") activeFilterLabels.push("Below 25% Section 3")
-  if (filters.targeted === "low") activeFilterLabels.push("Below 15% Targeted")
-  if (filters.compliance === "at_risk") activeFilterLabels.push("At-Risk / Non-Compliant")
+  const filterChips: Array<{ key: keyof DashboardFilters; label: string }> = []
+  if (filters.section3 === "low") filterChips.push({ key: "section3", label: "Section 3 < 25%" })
+  if (filters.targeted === "low") filterChips.push({ key: "targeted", label: "Targeted < 15%" })
+  if (filters.compliance === "at_risk") filterChips.push({ key: "compliance", label: "At Risk" })
+
+  const filterExplanation = hasActiveFilters
+    ? `Showing projects ${[
+        filters.section3 === "low" && "below the 25% Section 3 threshold",
+        filters.targeted === "low" && "below the 15% Targeted Section 3 threshold",
+        filters.compliance === "at_risk" && "with at-risk or non-compliant status",
+      ].filter(Boolean).join(" and ")}.`
+    : ""
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -314,9 +325,8 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Labor Hours — clears all filters (resets to full view) */}
         <Card
-          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${!hasActiveFilters ? "ring-2 ring-blue-300" : ""}`}
+          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${!hasActiveFilters ? "ring-2 ring-blue-300" : "opacity-80 hover:opacity-100"}`}
           onClick={clearFilters}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -325,7 +335,9 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{complianceData.totalHours.toLocaleString()}</div>
-            <p className="text-xs text-gray-600 mt-1">Across all active projects</p>
+            <p className="text-xs text-gray-600 mt-1">
+              {hasActiveFilters ? "Click to reset filters" : "Across all active projects"}
+            </p>
           </CardContent>
         </Card>
 
@@ -398,26 +410,31 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       {/* Detailed Analytics */}
       {/* Global filter indicator */}
       {hasActiveFilters && (
-        <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-center space-x-2 flex-wrap gap-1">
-            <ClipboardCheck className="h-4 w-4 text-orange-600 flex-shrink-0" />
-            <span className="text-sm font-medium text-orange-800">Active filters:</span>
-            {activeFilterLabels.map((label) => (
-              <Badge key={label} variant="outline" className="text-xs bg-white">
-                {label}
-              </Badge>
-            ))}
-            <Badge variant="outline" className="text-xs">
-              {filteredProjects.length} of {projectData.length} projects
-            </Badge>
+        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center flex-wrap gap-2">
+              {filterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-white border border-orange-300 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
+                  onClick={() => toggleFilter(chip.key, filters[chip.key]!)}
+                >
+                  <span>{chip.label}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+              <span className="text-xs text-orange-600">
+                {filteredProjects.length} of {projectData.length} projects
+              </span>
+            </div>
+            <button
+              className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+              onClick={clearFilters}
+            >
+              Clear all
+            </button>
           </div>
-          <button
-            className="text-xs text-orange-600 hover:text-orange-800 font-medium flex items-center space-x-1"
-            onClick={clearFilters}
-          >
-            <X className="h-3 w-3" />
-            <span>Clear all</span>
-          </button>
+          <p className="text-xs text-orange-700">{filterExplanation}</p>
         </div>
       )}
 
@@ -436,6 +453,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           >
             <Building className="h-4 w-4" />
             Projects
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
           </TabsTrigger>
           <TabsTrigger
             value="compliance-tracking"
@@ -508,11 +526,14 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                   {complianceAlerts.map((alert, index) => (
                     <div
                       key={index}
-                      className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer"
+                      className={`flex items-start space-x-3 p-3 border rounded-lg transition-colors duration-200 ${alert.action ? "cursor-pointer hover:bg-orange-50" : ""}`}
                       onClick={() => {
-                        if (alert.type === "warning") toggleFilter("section3", "low")
-                        else if (alert.type === "info") toggleFilter("compliance", "at_risk")
-                        else clearFilters()
+                        if (alert.action?.filter) {
+                          const key = Object.keys(alert.action.filter)[0] as keyof DashboardFilters
+                          toggleFilter(key, alert.action.filter[key]!)
+                        } else if (alert.action === null) {
+                          clearFilters()
+                        }
                       }}
                     >
                       {getAlertIcon(alert.type)}
@@ -674,9 +695,6 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                             </div>
                             <div className="flex items-center justify-between text-sm border-t pt-3">
                               <div className="text-gray-600">
-                                <span className="font-medium">Contractor:</span> {project.contractor}
-                              </div>
-                              <div className="text-gray-600">
                                 <span className="font-medium">S3 gap:</span>{" "}
                                 {project.section3 >= 25
                                   ? <span className="text-green-600">+{(project.section3 - 25).toFixed(0)}% above threshold</span>
@@ -688,6 +706,12 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                                   ? <span className="text-green-600">+{(project.targeted - 15).toFixed(0)}% above threshold</span>
                                   : <span className="text-red-600">{(project.targeted - 15).toFixed(0)}% below threshold</span>}
                               </div>
+                              <button
+                                className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-1 hover:bg-blue-50 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); onNavigate?.("project-compliance") }}
+                              >
+                                View full compliance
+                              </button>
                             </div>
                           </div>
                         )}
