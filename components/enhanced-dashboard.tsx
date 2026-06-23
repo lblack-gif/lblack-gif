@@ -42,6 +42,7 @@ interface EnhancedDashboardProps {
 
 export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview")
+  const [projectFilter, setProjectFilter] = useState<string | null>(null)
   const [complianceData, setComplianceData] = useState({
     totalHours: 12450,
     section3Hours: 3890,
@@ -204,6 +205,25 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
     },
   ])
 
+  const filteredProjects = projectData.filter((p) => {
+    if (!projectFilter) return true
+    if (projectFilter === "below-section3") return p.section3 < 25
+    if (projectFilter === "below-targeted") return p.targeted < 15
+    if (projectFilter === "at-risk") return p.status === "at-risk" || p.status === "non-compliant"
+    return true
+  })
+
+  const filterLabels: Record<string, string> = {
+    "below-section3": "Below 25% Section 3",
+    "below-targeted": "Below 15% Targeted",
+    "at-risk": "At-Risk / Non-Compliant",
+  }
+
+  const applyFilter = (filter: string | null) => {
+    setProjectFilter(filter)
+    setActiveTab("projects")
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "compliant":
@@ -271,10 +291,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Labor Hours */}
+        {/* Total Labor Hours — switches to projects tab, clears filter (show full breakdown) */}
         <Card
-          className="border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
-          onClick={() => setActiveTab("compliance-tracking")}
+          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${activeTab === "projects" && !projectFilter ? "ring-2 ring-blue-300" : ""}`}
+          onClick={() => { setProjectFilter(null); setActiveTab("projects") }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
@@ -286,10 +306,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Section 3 Hours */}
+        {/* Section 3 Hours — filters projects below 25% S3 threshold */}
         <Card
-          className="border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
-          onClick={() => setActiveTab("workers")}
+          className={`border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "below-section3" ? "ring-2 ring-green-300" : ""}`}
+          onClick={() => applyFilter("below-section3")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
@@ -305,10 +325,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Targeted Section 3 Hours */}
+        {/* Targeted Section 3 Hours — filters projects below 15% targeted threshold */}
         <Card
-          className="border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
-          onClick={() => setActiveTab("workers")}
+          className={`border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "below-targeted" ? "ring-2 ring-teal-300" : ""}`}
+          onClick={() => applyFilter("below-targeted")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Targeted Section 3 Hours</CardTitle>
@@ -326,10 +346,10 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Compliance Status */}
+        {/* Compliance Status — filters to at-risk / non-compliant projects */}
         <Card
-          className="border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer"
-          onClick={() => setActiveTab("compliance-tracking")}
+          className={`border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${projectFilter === "at-risk" ? "ring-2 ring-purple-300" : ""}`}
+          onClick={() => applyFilter("at-risk")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
@@ -353,7 +373,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
       </div>
 
       {/* Detailed Analytics */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); if (tab !== "projects") setProjectFilter(null) }} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger
             value="overview"
@@ -440,12 +460,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                   {complianceAlerts.map((alert, index) => (
                     <div
                       key={index}
-                      className="flex items-start space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-orange-50 transition-colors duration-200"
-                      onClick={() => {
-                        if (alert.type === "warning") onNavigate?.("project-compliance")
-                        else if (alert.type === "info") onNavigate?.("comprehensive-reports")
-                        else onNavigate?.("contractor-performance")
-                      }}
+                      className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
                     >
                       {getAlertIcon(alert.type)}
                       <div className="flex-1 min-w-0">
@@ -513,6 +528,26 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-4">
+          {projectFilter && (
+            <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <ClipboardCheck className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-medium text-orange-800">
+                  Filtered: {filterLabels[projectFilter]}
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  {filteredProjects.length} of {projectData.length} projects
+                </Badge>
+              </div>
+              <button
+                className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+                onClick={() => setProjectFilter(null)}
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+
           <Card className="hover:shadow-lg transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Project Compliance Status</CardTitle>
@@ -520,7 +555,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={projectData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <BarChart data={filteredProjects} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                   <YAxis />
@@ -536,33 +571,44 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
           <Card className="hover:shadow-lg transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
-              <CardDescription>Detailed project information and contractor assignments</CardDescription>
+              <CardDescription>
+                {projectFilter
+                  ? `Showing ${filteredProjects.length} projects matching filter`
+                  : "Detailed project information and contractor assignments"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {projectData.map((project, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer"
-                    onClick={() => onNavigate?.("project-compliance")}
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">{project.name}</h3>
-                      <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <div className="text-sm font-medium">Section 3: {project.section3}%</div>
-                        <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">{project.total}</div>
-                        <div className="text-xs text-gray-600">Total Hours</div>
-                      </div>
-                      {getStatusBadge(project.status)}
-                    </div>
+                {filteredProjects.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
+                    <p className="text-sm font-medium text-gray-600">No projects match this filter</p>
+                    <p className="text-xs text-gray-500 mt-1">All projects meet the threshold for this metric</p>
                   </div>
-                ))}
+                ) : (
+                  filteredProjects.map((project, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-medium">{project.name}</h3>
+                        <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <div className="text-sm font-medium">Section 3: {project.section3}%</div>
+                          <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold">{project.total}</div>
+                          <div className="text-xs text-gray-600">Total Hours</div>
+                        </div>
+                        {getStatusBadge(project.status)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
