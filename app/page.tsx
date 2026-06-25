@@ -255,7 +255,7 @@ export default function HomePage() {
   const renderActiveView = () => {
     switch (activeView) {
       case "overview":
-        return <EnhancedDashboard />
+        return <EnhancedDashboard onNavigate={(view) => setActiveView(view as ActiveView)} />
       case "notifications":
         return <NotificationSystem />
       case "project-compliance":
@@ -295,7 +295,7 @@ export default function HomePage() {
       case "system-monitoring":
         return <SystemMonitoring />
       default:
-        return <EnhancedDashboard />
+        return <EnhancedDashboard onNavigate={(view) => setActiveView(view as ActiveView)} />
     }
   }
 

@@ -34,9 +34,26 @@ import {
   Building,
   ClipboardCheck,
   UserCog,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 
-export function EnhancedDashboard() {
+interface EnhancedDashboardProps {
+  onNavigate?: (view: string) => void
+}
+
+interface DashboardFilters {
+  section3?: "low"
+  targeted?: "low"
+  compliance?: "at_risk"
+}
+
+export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
+  const [activeTab, setActiveTab] = useState("overview")
+  const [filters, setFilters] = useState<DashboardFilters>({})
+  const [selectedProject, setSelectedProject] = useState<number | null>(null)
+  const [previousFilters, setPreviousFilters] = useState<DashboardFilters | null>(null)
   const [complianceData, setComplianceData] = useState({
     totalHours: 12450,
     section3Hours: 3890,
@@ -182,6 +199,7 @@ export function EnhancedDashboard() {
       project: "Senior Housing Development",
       severity: "medium",
       daysOverdue: 5,
+      action: { filter: { section3: "low" as const } },
     },
     {
       type: "info",
@@ -189,6 +207,7 @@ export function EnhancedDashboard() {
       project: "All Projects",
       severity: "low",
       daysOverdue: 0,
+      action: { filter: { compliance: "at_risk" as const } },
     },
     {
       type: "success",
@@ -196,8 +215,71 @@ export function EnhancedDashboard() {
       project: "Affordable Housing Phase 1",
       severity: "low",
       daysOverdue: 0,
+      action: null,
     },
   ])
+
+  const hasActiveFilters = Object.keys(filters).length > 0
+
+  const filteredProjects = projectData.filter((p) => {
+    if (!hasActiveFilters) return true
+    if (filters.section3 === "low" && p.section3 >= 25) return false
+    if (filters.targeted === "low" && p.targeted >= 15) return false
+    if (filters.compliance === "at_risk" && p.status !== "at-risk" && p.status !== "non-compliant") return false
+    return true
+  })
+
+  const toggleFilter = (key: keyof DashboardFilters, value: DashboardFilters[keyof DashboardFilters]) => {
+    setSelectedProject(null)
+    setPreviousFilters(null)
+    setFilters((prev) => {
+      if (prev[key] === value) {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      }
+      return { ...prev, [key]: value }
+    })
+  }
+
+  const clearFilters = () => {
+    setPreviousFilters({ ...filters })
+    setFilters({})
+    setSelectedProject(null)
+  }
+
+  const undoClear = () => {
+    if (previousFilters) {
+      setFilters(previousFilters)
+      setPreviousFilters(null)
+    }
+  }
+
+  const chipSeverity: Record<string, "critical" | "warning" | "neutral"> = {
+    compliance: "critical",
+    section3: "warning",
+    targeted: "neutral",
+  }
+
+  const chipStyles: Record<string, string> = {
+    critical: "bg-red-50 border-red-300 text-red-800 hover:bg-red-100",
+    warning: "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100",
+    neutral: "bg-white border-orange-300 text-orange-800 hover:bg-orange-100",
+  }
+
+  const filterChips: Array<{ key: keyof DashboardFilters; label: string; severity: "critical" | "warning" | "neutral" }> = []
+  if (filters.compliance === "at_risk") filterChips.push({ key: "compliance", label: "At Risk", severity: "critical" })
+  if (filters.section3 === "low") filterChips.push({ key: "section3", label: "Section 3 < 25%", severity: "warning" })
+  if (filters.targeted === "low") filterChips.push({ key: "targeted", label: "Targeted < 15%", severity: "neutral" })
+
+  const belowS3Count = projectData.filter((p) => p.section3 < 25).length
+  const belowTargetedCount = projectData.filter((p) => p.targeted < 15).length
+  const atRiskCount = projectData.filter((p) => p.status === "at-risk" || p.status === "non-compliant").length
+
+  const actionableSummaryLines: string[] = []
+  if (filters.section3 === "low" && belowS3Count > 0) actionableSummaryLines.push(`${belowS3Count} below Section 3 threshold`)
+  if (filters.targeted === "low" && belowTargetedCount > 0) actionableSummaryLines.push(`${belowTargetedCount} below Targeted threshold`)
+  if (filters.compliance === "at_risk" && atRiskCount > 0) actionableSummaryLines.push(`${atRiskCount} at-risk compliance`)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -266,20 +348,27 @@ export function EnhancedDashboard() {
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Labor Hours */}
-        <Card className="border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        <Card
+          className={`border-l-4 border-l-blue-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${!hasActiveFilters ? "ring-2 ring-blue-300" : "opacity-80 hover:opacity-100"}`}
+          onClick={clearFilters}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Labor Hours</CardTitle>
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{complianceData.totalHours.toLocaleString()}</div>
-            <p className="text-xs text-gray-600 mt-1">Across all active projects</p>
+            <p className="text-xs text-gray-600 mt-1">
+              {hasActiveFilters ? "Click to reset filters" : "Across all active projects"}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Section 3 Hours */}
-        <Card className="border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        {/* Section 3 Hours — toggles filter: projects below 25% S3 threshold */}
+        <Card
+          className={`border-l-4 border-l-green-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.section3 === "low" ? "ring-2 ring-green-300" : ""}`}
+          onClick={() => toggleFilter("section3", "low")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Section 3 Hours</CardTitle>
             <Users className="h-4 w-4 text-green-600" />
@@ -294,8 +383,11 @@ export function EnhancedDashboard() {
           </CardContent>
         </Card>
 
-        {/* Targeted Section 3 Hours */}
-        <Card className="border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        {/* Targeted Section 3 Hours — toggles filter: projects below 15% targeted threshold */}
+        <Card
+          className={`border-l-4 border-l-teal-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.targeted === "low" ? "ring-2 ring-teal-300" : ""}`}
+          onClick={() => toggleFilter("targeted", "low")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Targeted Section 3 Hours</CardTitle>
             <Target className="h-4 w-4 text-teal-600" />
@@ -312,8 +404,11 @@ export function EnhancedDashboard() {
           </CardContent>
         </Card>
 
-        {/* Compliance Status */}
-        <Card className="border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200">
+        {/* Compliance Status — toggles filter: at-risk / non-compliant projects */}
+        <Card
+          className={`border-l-4 border-l-purple-500 hover:shadow-lg hover:border-l-orange-500 transition-all duration-200 cursor-pointer ${filters.compliance === "at_risk" ? "ring-2 ring-purple-300" : ""}`}
+          onClick={() => toggleFilter("compliance", "at_risk")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
             <Award className="h-4 w-4 text-purple-600" />
@@ -336,7 +431,59 @@ export function EnhancedDashboard() {
       </div>
 
       {/* Detailed Analytics */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      {/* Global filter indicator */}
+      {(hasActiveFilters || previousFilters) && (
+        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+          {hasActiveFilters ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center flex-wrap gap-2">
+                  {filterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${chipStyles[chip.severity]}`}
+                      onClick={() => toggleFilter(chip.key, filters[chip.key]!)}
+                    >
+                      <span>{chip.label}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+                {filterChips.length > 1 && (
+                  <button
+                    className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+                    onClick={clearFilters}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              {actionableSummaryLines.length > 0 && (
+                <div className="text-xs text-gray-700">
+                  <span className="font-medium">{filteredProjects.length} project{filteredProjects.length !== 1 ? "s" : ""} require attention:</span>
+                  {actionableSummaryLines.map((line) => (
+                    <span key={line} className="ml-2">
+                      &bull; {line}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : previousFilters && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-orange-700">Filters cleared</span>
+              <button
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                onClick={undoClear}
+              >
+                Undo
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); setSelectedProject(null) }} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger
             value="overview"
@@ -351,6 +498,7 @@ export function EnhancedDashboard() {
           >
             <Building className="h-4 w-4" />
             Projects
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
           </TabsTrigger>
           <TabsTrigger
             value="compliance-tracking"
@@ -421,7 +569,18 @@ export function EnhancedDashboard() {
               <CardContent>
                 <div className="space-y-3">
                   {complianceAlerts.map((alert, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    <div
+                      key={index}
+                      className={`flex items-start space-x-3 p-3 border rounded-lg transition-colors duration-200 ${alert.action ? "cursor-pointer hover:bg-orange-50" : ""}`}
+                      onClick={() => {
+                        if (alert.action?.filter) {
+                          const key = Object.keys(alert.action.filter)[0] as keyof DashboardFilters
+                          toggleFilter(key, alert.action.filter[key]!)
+                        } else if (alert.action === null) {
+                          clearFilters()
+                        }
+                      }}
+                    >
                       {getAlertIcon(alert.type)}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{alert.message}</p>
@@ -495,7 +654,7 @@ export function EnhancedDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={projectData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <BarChart data={filteredProjects} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                   <YAxis />
@@ -511,32 +670,115 @@ export function EnhancedDashboard() {
           <Card className="hover:shadow-lg transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
-              <CardDescription>Detailed project information and contractor assignments</CardDescription>
+              <CardDescription>
+                {hasActiveFilters
+                  ? `Showing ${filteredProjects.length} of ${projectData.length} projects`
+                  : "Click a project to inspect details"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {projectData.map((project, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">{project.name}</h3>
-                      <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <div className="text-sm font-medium">Section 3: {project.section3}%</div>
-                        <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">{project.total}</div>
-                        <div className="text-xs text-gray-600">Total Hours</div>
-                      </div>
-                      {getStatusBadge(project.status)}
-                    </div>
+              <div className="space-y-2">
+                {filteredProjects.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
+                    <p className="text-sm font-medium text-gray-600">No projects match this filter</p>
+                    <p className="text-xs text-gray-500 mt-1">All projects meet the threshold for this metric</p>
                   </div>
-                ))}
+                ) : (
+                  filteredProjects.map((project, index) => {
+                    const projectIndex = projectData.indexOf(project)
+                    const isExpanded = selectedProject === projectIndex
+                    return (
+                      <div key={index}>
+                        <div
+                          className={`flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors duration-200 cursor-pointer ${isExpanded ? "bg-orange-50 border-orange-300" : ""}`}
+                          onClick={() => setSelectedProject(isExpanded ? null : projectIndex)}
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            {isExpanded
+                              ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                            <div>
+                              <h3 className="font-medium">{project.name}</h3>
+                              <p className="text-sm text-gray-600">Contractor: {project.contractor}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="text-sm font-medium">Section 3: {project.section3}%</div>
+                              <div className="text-sm text-gray-600">Targeted: {project.targeted}%</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold">{project.total}</div>
+                              <div className="text-xs text-gray-600">Total Hours</div>
+                            </div>
+                            {getStatusBadge(project.status)}
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="ml-7 mr-2 mt-1 mb-3 p-4 border border-orange-200 rounded-lg bg-white space-y-3">
+                            {/* 1. Status + Risk (top priority) */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                {getStatusBadge(project.status)}
+                                <span className="text-sm text-gray-600">Contractor: {project.contractor}</span>
+                              </div>
+                              <div className="flex items-center space-x-4 text-sm">
+                                <div>
+                                  <span className="font-medium">S3: </span>
+                                  {project.section3 >= 25
+                                    ? <span className="text-green-600 font-medium">+{(project.section3 - 25).toFixed(0)}%</span>
+                                    : <span className="text-red-600 font-medium">{(project.section3 - 25).toFixed(0)}%</span>}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Targeted: </span>
+                                  {project.targeted >= 15
+                                    ? <span className="text-green-600 font-medium">+{(project.targeted - 15).toFixed(0)}%</span>
+                                    : <span className="text-red-600 font-medium">{(project.targeted - 15).toFixed(0)}%</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2. Metrics (secondary) */}
+                            <div className="grid grid-cols-3 gap-3 py-2 border-t border-b">
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-blue-600">{project.total}</div>
+                                <div className="text-xs text-gray-500">Total Hours</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-green-600">{project.section3}%</div>
+                                <div className="text-xs text-gray-500">Section 3 Rate</div>
+                                <Progress value={project.section3} className="mt-1 h-1.5" />
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-teal-600">{project.targeted}%</div>
+                                <div className="text-xs text-gray-500">Targeted Rate</div>
+                                <Progress value={project.targeted} className="mt-1 h-1.5" />
+                              </div>
+                            </div>
+
+                            {/* 3. Actions */}
+                            <div className="flex items-center space-x-2">
+                              <button
+                                className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2.5 py-1.5 hover:bg-blue-50 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); onNavigate?.("project-compliance") }}
+                              >
+                                View full compliance
+                              </button>
+                              <button
+                                className="text-xs font-medium text-green-600 hover:text-green-800 border border-green-200 rounded px-2.5 py-1.5 hover:bg-green-50 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); onNavigate?.("labor-hours") }}
+                              >
+                                Log hours
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
@@ -824,25 +1066,37 @@ export function EnhancedDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("workers")}
+            >
               <Users className="h-6 w-6 text-blue-600 mb-2" />
               <div className="font-medium">Register Worker</div>
               <div className="text-sm text-gray-600">Add new Section 3 worker</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("labor-hours")}
+            >
               <Clock className="h-6 w-6 text-green-600 mb-2" />
               <div className="font-medium">Log Hours</div>
               <div className="text-sm text-gray-600">Record labor hours</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("comprehensive-reports")}
+            >
               <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
               <div className="font-medium">Generate Report</div>
               <div className="text-sm text-gray-600">Create compliance report</div>
             </button>
 
-            <button className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200">
+            <button
+              className="p-4 text-left border rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              onClick={() => onNavigate?.("workers")}
+            >
               <Target className="h-6 w-6 text-teal-600 mb-2" />
               <div className="font-medium">Verify Status</div>
               <div className="text-sm text-gray-600">Check targeted eligibility</div>
