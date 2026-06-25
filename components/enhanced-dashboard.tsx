@@ -53,6 +53,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const [filters, setFilters] = useState<DashboardFilters>({})
   const [selectedProject, setSelectedProject] = useState<number | null>(null)
+  const [previousFilters, setPreviousFilters] = useState<DashboardFilters | null>(null)
   const [complianceData, setComplianceData] = useState({
     totalHours: 12450,
     section3Hours: 3890,
@@ -230,6 +231,7 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
 
   const toggleFilter = (key: keyof DashboardFilters, value: DashboardFilters[keyof DashboardFilters]) => {
     setSelectedProject(null)
+    setPreviousFilters(null)
     setFilters((prev) => {
       if (prev[key] === value) {
         const next = { ...prev }
@@ -241,22 +243,43 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
   }
 
   const clearFilters = () => {
+    setPreviousFilters({ ...filters })
     setFilters({})
     setSelectedProject(null)
   }
 
-  const filterChips: Array<{ key: keyof DashboardFilters; label: string }> = []
-  if (filters.section3 === "low") filterChips.push({ key: "section3", label: "Section 3 < 25%" })
-  if (filters.targeted === "low") filterChips.push({ key: "targeted", label: "Targeted < 15%" })
-  if (filters.compliance === "at_risk") filterChips.push({ key: "compliance", label: "At Risk" })
+  const undoClear = () => {
+    if (previousFilters) {
+      setFilters(previousFilters)
+      setPreviousFilters(null)
+    }
+  }
 
-  const filterExplanation = hasActiveFilters
-    ? `Showing projects ${[
-        filters.section3 === "low" && "below the 25% Section 3 threshold",
-        filters.targeted === "low" && "below the 15% Targeted Section 3 threshold",
-        filters.compliance === "at_risk" && "with at-risk or non-compliant status",
-      ].filter(Boolean).join(" and ")}.`
-    : ""
+  const chipSeverity: Record<string, "critical" | "warning" | "neutral"> = {
+    compliance: "critical",
+    section3: "warning",
+    targeted: "neutral",
+  }
+
+  const chipStyles: Record<string, string> = {
+    critical: "bg-red-50 border-red-300 text-red-800 hover:bg-red-100",
+    warning: "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100",
+    neutral: "bg-white border-orange-300 text-orange-800 hover:bg-orange-100",
+  }
+
+  const filterChips: Array<{ key: keyof DashboardFilters; label: string; severity: "critical" | "warning" | "neutral" }> = []
+  if (filters.compliance === "at_risk") filterChips.push({ key: "compliance", label: "At Risk", severity: "critical" })
+  if (filters.section3 === "low") filterChips.push({ key: "section3", label: "Section 3 < 25%", severity: "warning" })
+  if (filters.targeted === "low") filterChips.push({ key: "targeted", label: "Targeted < 15%", severity: "neutral" })
+
+  const belowS3Count = projectData.filter((p) => p.section3 < 25).length
+  const belowTargetedCount = projectData.filter((p) => p.targeted < 15).length
+  const atRiskCount = projectData.filter((p) => p.status === "at-risk" || p.status === "non-compliant").length
+
+  const actionableSummaryLines: string[] = []
+  if (filters.section3 === "low" && belowS3Count > 0) actionableSummaryLines.push(`${belowS3Count} below Section 3 threshold`)
+  if (filters.targeted === "low" && belowTargetedCount > 0) actionableSummaryLines.push(`${belowTargetedCount} below Targeted threshold`)
+  if (filters.compliance === "at_risk" && atRiskCount > 0) actionableSummaryLines.push(`${atRiskCount} at-risk compliance`)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -409,32 +432,54 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
 
       {/* Detailed Analytics */}
       {/* Global filter indicator */}
-      {hasActiveFilters && (
+      {(hasActiveFilters || previousFilters) && (
         <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center flex-wrap gap-2">
-              {filterChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-white border border-orange-300 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
-                  onClick={() => toggleFilter(chip.key, filters[chip.key]!)}
-                >
-                  <span>{chip.label}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-              <span className="text-xs text-orange-600">
-                {filteredProjects.length} of {projectData.length} projects
-              </span>
+          {hasActiveFilters ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center flex-wrap gap-2">
+                  {filterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${chipStyles[chip.severity]}`}
+                      onClick={() => toggleFilter(chip.key, filters[chip.key]!)}
+                    >
+                      <span>{chip.label}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+                {filterChips.length > 1 && (
+                  <button
+                    className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+                    onClick={clearFilters}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              {actionableSummaryLines.length > 0 && (
+                <div className="text-xs text-gray-700">
+                  <span className="font-medium">{filteredProjects.length} project{filteredProjects.length !== 1 ? "s" : ""} require attention:</span>
+                  {actionableSummaryLines.map((line) => (
+                    <span key={line} className="ml-2">
+                      &bull; {line}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : previousFilters && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-orange-700">Filters cleared</span>
+              <button
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                onClick={undoClear}
+              >
+                Undo
+              </button>
             </div>
-            <button
-              className="text-xs text-orange-600 hover:text-orange-800 font-medium"
-              onClick={clearFilters}
-            >
-              Clear all
-            </button>
-          </div>
-          <p className="text-xs text-orange-700">{filterExplanation}</p>
+          )}
         </div>
       )}
 
@@ -672,45 +717,60 @@ export function EnhancedDashboard({ onNavigate }: EnhancedDashboardProps) {
                         </div>
 
                         {isExpanded && (
-                          <div className="ml-7 mr-2 mt-1 mb-3 p-4 border border-orange-200 rounded-lg bg-white space-y-4">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-bold text-blue-600">{project.total}</div>
-                                <div className="text-xs text-gray-600">Total Hours</div>
+                          <div className="ml-7 mr-2 mt-1 mb-3 p-4 border border-orange-200 rounded-lg bg-white space-y-3">
+                            {/* 1. Status + Risk (top priority) */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                {getStatusBadge(project.status)}
+                                <span className="text-sm text-gray-600">Contractor: {project.contractor}</span>
                               </div>
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-bold text-green-600">{project.section3}%</div>
-                                <div className="text-xs text-gray-600">Section 3 Rate</div>
-                                <Progress value={project.section3} className="mt-1 h-1.5" />
-                              </div>
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-bold text-teal-600">{project.targeted}%</div>
-                                <div className="text-xs text-gray-600">Targeted Rate</div>
-                                <Progress value={project.targeted} className="mt-1 h-1.5" />
-                              </div>
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-bold">{getStatusBadge(project.status)}</div>
-                                <div className="text-xs text-gray-600 mt-1">Compliance Status</div>
+                              <div className="flex items-center space-x-4 text-sm">
+                                <div>
+                                  <span className="font-medium">S3: </span>
+                                  {project.section3 >= 25
+                                    ? <span className="text-green-600 font-medium">+{(project.section3 - 25).toFixed(0)}%</span>
+                                    : <span className="text-red-600 font-medium">{(project.section3 - 25).toFixed(0)}%</span>}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Targeted: </span>
+                                  {project.targeted >= 15
+                                    ? <span className="text-green-600 font-medium">+{(project.targeted - 15).toFixed(0)}%</span>
+                                    : <span className="text-red-600 font-medium">{(project.targeted - 15).toFixed(0)}%</span>}
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between text-sm border-t pt-3">
-                              <div className="text-gray-600">
-                                <span className="font-medium">S3 gap:</span>{" "}
-                                {project.section3 >= 25
-                                  ? <span className="text-green-600">+{(project.section3 - 25).toFixed(0)}% above threshold</span>
-                                  : <span className="text-red-600">{(project.section3 - 25).toFixed(0)}% below threshold</span>}
+
+                            {/* 2. Metrics (secondary) */}
+                            <div className="grid grid-cols-3 gap-3 py-2 border-t border-b">
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-blue-600">{project.total}</div>
+                                <div className="text-xs text-gray-500">Total Hours</div>
                               </div>
-                              <div className="text-gray-600">
-                                <span className="font-medium">Targeted gap:</span>{" "}
-                                {project.targeted >= 15
-                                  ? <span className="text-green-600">+{(project.targeted - 15).toFixed(0)}% above threshold</span>
-                                  : <span className="text-red-600">{(project.targeted - 15).toFixed(0)}% below threshold</span>}
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-green-600">{project.section3}%</div>
+                                <div className="text-xs text-gray-500">Section 3 Rate</div>
+                                <Progress value={project.section3} className="mt-1 h-1.5" />
                               </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-teal-600">{project.targeted}%</div>
+                                <div className="text-xs text-gray-500">Targeted Rate</div>
+                                <Progress value={project.targeted} className="mt-1 h-1.5" />
+                              </div>
+                            </div>
+
+                            {/* 3. Actions */}
+                            <div className="flex items-center space-x-2">
                               <button
-                                className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-1 hover:bg-blue-50 transition-colors"
+                                className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2.5 py-1.5 hover:bg-blue-50 transition-colors"
                                 onClick={(e) => { e.stopPropagation(); onNavigate?.("project-compliance") }}
                               >
                                 View full compliance
+                              </button>
+                              <button
+                                className="text-xs font-medium text-green-600 hover:text-green-800 border border-green-200 rounded px-2.5 py-1.5 hover:bg-green-50 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); onNavigate?.("labor-hours") }}
+                              >
+                                Log hours
                               </button>
                             </div>
                           </div>
